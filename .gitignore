@@ -12,11 +12,6 @@
 *.pyd
 *.dat
 
-*.bmp
-*.jpg
-*.jpeg
-*.png
-
 *.depend
 *.layout
 *.log
@@ -28,6 +23,8 @@ out*
 python/jpeg.py
 python/*wrap.*
 
-
 build/*
 !build/CMakeLists.txt
+
+other/*
+result/*
