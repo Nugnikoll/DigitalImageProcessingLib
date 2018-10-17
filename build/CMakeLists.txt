@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
-project (reversi)
-set (REVERSI_VERSION 2.1)
+project (DIP)
+set (DIP_VERSION 2.1)
 
 set (CMAKE_VERBOSE_MAKEFILE ON)
 
