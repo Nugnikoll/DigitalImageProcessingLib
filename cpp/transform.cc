@@ -8,6 +8,104 @@
 
 using namespace std;
 
+int reverse_bit(const int& x, const int& n){
+	int result = 0;
+	for(int i = 0; i != n; ++i){
+		result <<= 1;
+		if(x & (1 << i)){
+			result |= 1;
+		}
+	}
+	return result;
+}
+
+const double pi = 3.141592653589793238462643383279502884197175105;
+double table_sin[1024], table_cos[1024];
+int table_reverse[1024];
+
+void fft_preprocess(const int& size){
+	for(int i = 0; i != size; ++i){
+		table_sin[i] = sin(2 * i * pi / size);
+		table_cos[i] = cos(2 * i * pi / size);
+		table_reverse[i] = reverse_bit(i, size);
+	}
+}
+
+void fft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step){
+	#if __cplusplus >= 201103L
+		int p = log2(size);
+	#else
+		int p = log(size) / log(2);
+	#endif
+	int i1, i2;
+	double cs, cc;
+	double t1_real, t1_img, t2_real, t2_img;
+
+	for(int i = 0; i != size; ++i){
+		out_real[i] = in_real[table_reverse[i]];
+		out_img[i] = in_img[table_reverse[i]];
+	}
+
+	for(int i = 0; i != p; ++i){
+		for(int j = 0; j != 1 << (p - i - 1); ++j){
+			for(int k = 0; k != 1 << i; ++k){
+				i1 = (j << (i + 1)) + k;
+				i2 = i1 + (1 << i);
+				cs = table_sin[k << (p - i - 1)];
+				cc = table_cos[k << (p - i - 1)];
+				t1_real = out_real[i1];
+				t1_img = out_img[i1];
+				t2_real = out_real[i2];
+				t2_img = out_img[i2];
+				out_real[i1] = t1_real + cc * t2_real + cs * t2_img;
+				out_img[i1] = t1_img - cs * t2_real + cc * t2_img;
+				out_real[i2] = t1_real - cc * t2_real - cs * t2_img;
+				out_img[i2] = t1_img + cs * t2_real - cc * t2_img;
+			}
+		}
+	}
+}
+
+void ifft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step){
+	#if __cplusplus >= 201103L
+		int p = log2(size);
+	#else
+		int p = log(size) / log(2);
+	#endif
+	int i1, i2;
+	double cs, cc;
+	double t1_real, t1_img, t2_real, t2_img;
+
+	for(int i = 0; i != size; ++i){
+		out_real[i] = in_real[table_reverse[i]];
+		out_img[i] = in_img[table_reverse[i]];
+	}
+
+	for(int i = 0; i != p; ++i){
+		for(int j = 0; j != 1 << (p - i - 1); ++j){
+			for(int k = 0; k != 1 << i; ++k){
+				i1 = (j << (i + 1)) + k;
+				i2 = i1 + (1 << i);
+				cs = - table_sin[k << (p - i - 1)];
+				cc = table_cos[k << (p - i - 1)];
+				t1_real = out_real[i1];
+				t1_img = out_img[i1];
+				t2_real = out_real[i2];
+				t2_img = out_img[i2];
+				out_real[i1] = t1_real + cc * t2_real + cs * t2_img;
+				out_img[i1] = t1_img - cs * t2_real + cc * t2_img;
+				out_real[i2] = t1_real - cc * t2_real - cs * t2_img;
+				out_img[i2] = t1_img + cs * t2_real - cc * t2_img;
+			}
+		}
+	}
+
+	for(int i = 0; i != size; ++i){
+		out_real[i] /= size;
+		out_img[i] /= size;
+	}
+}
+
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3){
 	assert(i3 == 3);
 

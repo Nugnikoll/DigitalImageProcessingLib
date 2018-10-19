@@ -1,6 +1,10 @@
 #ifndef TRANSFROM_H
 #define TRANSFORM_H
 
+void fft_preprocess(const int& size);
+void fft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step = 1);
+void ifft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step = 1);
+
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3);
 void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3);
 void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w);
