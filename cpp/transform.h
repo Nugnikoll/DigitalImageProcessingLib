@@ -1,9 +1,13 @@
 #ifndef TRANSFROM_H
 #define TRANSFORM_H
 
+#include <complex>
+
+using namespace std;
+
 void fft_preprocess(const int& size);
-void fft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step = 1);
-void ifft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step = 1);
+void fft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri , int i1);
+void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri , int i1);
 
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3);
 void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3);

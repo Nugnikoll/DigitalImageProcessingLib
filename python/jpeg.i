@@ -1,3 +1,5 @@
+// -*- c++ -*-
+
 %module jpeg
 
 %{
@@ -10,6 +12,7 @@
 %include <std_array.i>
 %include <std_vector.i>
 %include <std_pair.i>
+%include <std_complex.i>
 
 %{
 	#include "../cpp/jpeg.h"
@@ -84,8 +87,30 @@
 %apply (double** ARGOUTVIEWM_ARRAY3, int* DIM1, int* DIM2, int* DIM3)
 {(double** ptrm, int* m1, int* m2, int* m3)};
 
+%apply (std::complex<double>* INPLACE_ARRAY1, int DIM1)
+{(std::complex<double>* ptri, int i1)};
+%apply (std::complex<double>** ARGOUTVIEW_ARRAY1, int* DIM1)
+{(std::complex<double>** ptro, int* o1)};
+%apply (std::complex<double>** ARGOUTVIEWM_ARRAY1, int* DIM1)
+{(std::complex<double>** ptrm, int* m1)};
+
+%apply (std::complex<double>* INPLACE_ARRAY2, int DIM1, int DIM2)
+{(std::complex<double>* ptri, int i1, int i2)};
+%apply (std::complex<double>** ARGOUTVIEW_ARRAY2, int* DIM1, int* DIM2)
+{(std::complex<double>** ptro, int* o1, int o2)};
+%apply (std::complex<double>** ARGOUTVIEWM_ARRAY2, int* DIM1, int* DIM2)
+{(std::complex<double>** ptrm, int* m1, int m2)};
+
+%apply (std::complex<double>* INPLACE_ARRAY3, int DIM1, int DIM2, int DIM3)
+{(std::complex<double>* ptri, int i1, int i2, int i3)};
+%apply (std::complex<double>** ARGOUTVIEW_ARRAY3, int* DIM1, int* DIM2, int* DIM3)
+{(std::complex<double>** ptro, int* o1, int o2, int o3)};
+%apply (std::complex<double>** ARGOUTVIEWM_ARRAY3, int* DIM1, int* DIM2, int* DIM3)
+{(std::complex<double>** ptrm, int* m1, int m2, int m3)};
+
 %include "../cpp/jpeg.h"
 %include "../cpp/transform.h"
 
-%template(ary_i) std::array<int, 64>;
+//%template(complex_d) std::complex<double>;
+//%template(ary_i) std::array<int, 64>;
 //%template(ary_u16) std::array<uint16_t, >;
