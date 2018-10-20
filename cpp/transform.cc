@@ -8,6 +8,121 @@
 
 using namespace std;
 
+int reverse_bit(const int& x, const int& n){
+	int result = 0;
+	for(int i = 0; i != n; ++i){
+		result <<= 1;
+		if(x & (1 << i)){
+			result |= 1;
+		}
+	}
+	return result;
+}
+
+const double pi = 3.141592653589793238462643383279502884197175105;
+double table_sin[1024], table_cos[1024];
+int table_reverse[1024];
+
+void fft_preprocess(const int& size){
+	#if __cplusplus >= 201103L
+		int p = log2(size);
+	#else
+		int p = log(size) / log(2);
+	#endif
+	for(int i = 0; i != size; ++i){
+		table_sin[i] = sin(2 * i * pi / size);
+		table_cos[i] = cos(2 * i * pi / size);
+		table_reverse[i] = reverse_bit(i, p);
+	}
+}
+
+void fft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step){
+	#if __cplusplus >= 201103L
+		int p = log2(size);
+	#else
+		int p = log(size) / log(2);
+	#endif
+	int i1, i2;
+	double cs, cc;
+	double t1_real, t1_img, t2_real, t2_img;
+
+	for(int i = 0; i != size; ++i){
+		out_real[i * step] = in_real[table_reverse[i] * step];
+		out_img[i * step] = in_img[table_reverse[i] * step];
+	}
+
+	for(int i = 0; i != p; ++i){
+		for(int j = 0; j != 1 << (p - i - 1); ++j){
+			for(int k = 0; k != 1 << i; ++k){
+				i1 = ((j << (i + 1)) + k) * step;
+				i2 = i1 + (1 << i) * step;
+				cs = table_sin[k << (p - i - 1)];
+				cc = table_cos[k << (p - i - 1)];
+				t1_real = out_real[i1];
+				t1_img = out_img[i1];
+				t2_real = out_real[i2];
+				t2_img = out_img[i2];
+				out_real[i1] = t1_real + cc * t2_real + cs * t2_img;
+				out_img[i1] = t1_img - cs * t2_real + cc * t2_img;
+				out_real[i2] = t1_real - cc * t2_real - cs * t2_img;
+				out_img[i2] = t1_img + cs * t2_real - cc * t2_img;
+			}
+		}
+	}
+}
+
+void ifft(const int& size, double* in_real, double* in_img, double* out_real, double* out_img, const int& step){
+	#if __cplusplus >= 201103L
+		int p = log2(size);
+	#else
+		int p = log(size) / log(2);
+	#endif
+	int i1, i2;
+	double cs, cc;
+	double t1_real, t1_img, t2_real, t2_img;
+
+	for(int i = 0; i != size; ++i){
+		out_real[i * step] = in_real[table_reverse[i] * step];
+		out_img[i * step] = in_img[table_reverse[i] * step];
+	}
+
+	for(int i = 0; i != p; ++i){
+		for(int j = 0; j != 1 << (p - i - 1); ++j){
+			for(int k = 0; k != 1 << i; ++k){
+				i1 = ((j << (i + 1)) + k) * step;
+				i2 = i1 + (1 << i) * step;
+				cs = - table_sin[k << (p - i - 1)];
+				cc = table_cos[k << (p - i - 1)];
+				t1_real = out_real[i1];
+				t1_img = out_img[i1];
+				t2_real = out_real[i2];
+				t2_img = out_img[i2];
+				out_real[i1] = t1_real + cc * t2_real + cs * t2_img;
+				out_img[i1] = t1_img - cs * t2_real + cc * t2_img;
+				out_real[i2] = t1_real - cc * t2_real - cs * t2_img;
+				out_img[i2] = t1_img + cs * t2_real - cc * t2_img;
+			}
+		}
+	}
+
+	for(int i = 0; i != size; ++i){
+		out_real[i * step] /= size;
+		out_img[i * step] /= size;
+	}
+}
+
+void fft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri, int i1){
+	*m1 = i1;
+	*ptrm = new complex<double>[i1];
+	fft(i1, (double*)ptri, ((double*)ptri) + 1, (double*)*ptrm, ((double*)*ptrm) + 1, 2);
+}
+
+void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri, int i1){
+	*m1 = i1;
+	*ptrm = new complex<double>[i1];
+	ifft(i1, (double*)ptri, ((double*)ptri) + 1, (double*)*ptrm, ((double*)*ptrm) + 1, 2);
+}
+
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3){
 	assert(i3 == 3);
 
@@ -54,6 +169,18 @@ void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, i
 			(*ptrm)[(i * i2 + j) * i3 + 2] =
 				ptri[(i * i2 + j) * i3 + 0]
 				+ 1.772 * ptri[(i * i2 + j) * i3 + 1] + 128;
+		}
+	}
+}
+
+void power_law(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, double gamma){
+	*m1 = i1;
+	*m2 = i2;
+	*ptrm = new int[i1 * i2];
+
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			(*ptrm)[i * i2 + j] = pow(double(ptri[i * i2 + j]) / 255, gamma) * 255;
 		}
 	}
 }

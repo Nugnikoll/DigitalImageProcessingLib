@@ -6,6 +6,7 @@ from jpeg import jpeg;
 
 #img = image.open("../img/dark.jpg");
 img = image.open("../img/scene.jpg");
+#img = image.open("../img/artery.jpg");
 data = np.array(img.getdata(), dtype = np.uint8);
 data = data.reshape((img.height, img.width, 3));
 
