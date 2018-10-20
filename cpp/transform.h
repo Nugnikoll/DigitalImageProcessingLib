@@ -11,6 +11,7 @@ void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri , int
 
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3);
 void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3);
+void power_law(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, double power);
 void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w);
 void resize_near(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w);
 void resize_linear(int** ptrm, int* m1, int* ptri, int i1, int n);

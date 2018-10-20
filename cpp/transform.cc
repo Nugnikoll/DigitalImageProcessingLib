@@ -173,6 +173,18 @@ void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, i
 	}
 }
 
+void power_law(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, double gamma){
+	*m1 = i1;
+	*m2 = i2;
+	*ptrm = new int[i1 * i2];
+
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			(*ptrm)[i * i2 + j] = pow(double(ptri[i * i2 + j]) / 255, gamma) * 255;
+		}
+	}
+}
+
 void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w){
 	*m1 = h;
 	*m2 = w;
