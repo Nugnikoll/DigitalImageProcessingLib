@@ -123,6 +123,100 @@ void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri, int 
 	ifft(i1, (double*)ptri, ((double*)ptri) + 1, (double*)*ptrm, ((double*)*ptrm) + 1, 2);
 }
 
+void dct(const int& size, double* data_in, double* data_out, const int& step = 1){
+	const double c[2] = {1.0 / sqrt(2.0), 1};
+	double temp;
+
+	for(int i = 0; i != size; ++i){
+		temp = 0;
+		for(int j = 0; j != size; ++j){
+			temp += data_in[j * step] * table_cos[(2 * j + 1) * i % (size * 4)];
+		}
+		data_out[i * step] = c[i != 0] * temp;
+	}
+}
+
+void idct(const int& size, double* data_in, double* data_out, const int& step = 1){
+	const double c[2] = {1.0 / sqrt(2.0), 1};
+	double temp;
+
+	for(int j = 0; j != size; ++j){
+		temp = 0;
+		for(int i = 0; i != size; ++i){
+			temp += c[i != 0] * data_in[i * step] * table_cos[(2 * j + 1) * i % (size * 4)];
+		}
+		data_out[j * step] = temp * 2 / size;
+	}
+}
+
+void dct(double** ptrm, int* m1, double* ptri, int i1){
+	*m1 = i1;
+	*ptrm = new double[i1];
+	dct(i1, ptri, *ptrm);
+}
+void idct(double** ptrm, int* m1, double* ptri, int i1){
+	*m1 = i1;
+	*ptrm = new double[i1];
+	idct(i1, ptri, *ptrm);
+}
+
+//void fct_preprocess(const int& size){
+//	#if __cplusplus >= 201103L
+//		int p = log2(size);
+//	#else
+//		int p = log(size) / log(2);
+//	#endif
+//	for(int i = 0; i != size * 4; ++i){
+//		table_sin[i] = sin(i * pi / size / 2);
+//		table_cos[i] = cos(i * pi / size / 2);
+//	}
+//	for(int i = 0; i != size; ++i){
+//		table_reverse[i] = reverse_bit(i, p);
+//	}
+//}
+
+//void fct(const int& size, double* data_in, double* data_out, const int& step = 1){
+//	#if __cplusplus >= 201103L
+//		int p = log2(size) + 1;
+//	#else
+//		int p = log(size) / log(2) + 1;
+//	#endif
+//	int i1, i2;
+//	double cs, cc;
+//	double t1, t2;
+//	double* buffer = new double[size << 1];
+
+//	for(int i = 0; i != size; ++i){
+//		buffer[i] = data_in[table_reverse[i] * step];
+//		buffer[i] = data_in[(size * 2 - table_reverse[i] - 1) * step];
+//	}
+
+//	for(int i = 0; i != p; ++i){
+//		for(int j = 0; j != 1 << (p - i - 1); ++j){
+//			for(int k = 0; k != 1 << i; ++k){
+//				i1 = ((j << (i + 1)) + k);
+//				i2 = i1 + (1 << i);
+//				cc = table_cos[k << (p - i - 1)];
+//				t1 = buffer[i1];
+//				t2 = buffer[i2];
+//				buffer[i1] = t1 + cc * t2;
+//				buffer[i2] = t1 - cc * t2;
+//			}
+//		}
+//	}
+
+//	for(int i = 0; i != size; ++i){
+//		data_out[i * step] = buffer[i];
+//	}
+
+//	delete buffer;
+//}
+//void fct(double** ptrm, int* m1, double* ptri, int i1){
+//	*m1 = i1;
+//	*ptrm = new double[i1];
+//	fct(i1, ptri, *ptrm);
+//}
+
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3){
 	assert(i3 == 3);
 
