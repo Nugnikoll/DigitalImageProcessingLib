@@ -7,10 +7,12 @@
 - 依赖
 	- C++编译器，需要能支持C++11语法
 	- [Python3](https://www.python.org/)
-	- [swig](http://swig.org/) 用于将C++实现的部分做成可供Python调用的库
-	- [numpy](http://www.numpy.org/) Python下常用线性代数运算库
-	- [Pillow](https://pypi.org/project/Pillow/) Python下常用图像处理库
+	- [Swig](http://swig.org/) 用于将C++实现的部分做成可供Python调用的库
+	- [Numpy](http://www.numpy.org/) Python库，用于线性代数运算
+	- [Pillow](https://pypi.org/project/Pillow/) Python库，用于图像处理
+	- [Matplotlib](https://matplotlib.org/) Python库，用于绘制图表
 	- [CMake](https://cmake.org/) 用于实现跨平台编译
+	编译前请确定c++编译器、python3、swig和cmake所在路径已经添加到环境变量PATH中
 
 - 编译C++代码，生成可供Python调用的动态链接库（_reversi.so或_reversi.pyd）  
 	`cd build`  
@@ -24,8 +26,9 @@
 - 运行样例需要
 	- 前面编译好的动态链接库_jpeg.so或_jpeg.pyd
 	- [Python3](https://www.python.org/)
-	- [numpy](http://www.numpy.org/) Python下常用线性代数运算库
-	- [Pillow](https://pypi.org/project/Pillow/) Python下常用图像处理库
+	- [Numpy](http://www.numpy.org/) Python库，用于线性代数运算
+	- [Pillow](https://pypi.org/project/Pillow/) Python库，用于图像处理
+	- [Matplotlib](https://matplotlib.org/) Python库，用于绘制图表
 
 - 样例的运行（这里以运行jpeg_decode.py为例）  
 	`cd sample`  
