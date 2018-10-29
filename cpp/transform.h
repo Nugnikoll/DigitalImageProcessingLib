@@ -5,6 +5,17 @@
 
 using namespace std;
 
+void padding(
+	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
+	const int& margin_t, const int& margin_b,
+	const int& margin_l, const int& margin_r, const int& value = 0
+);
+void trim(
+	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
+	const int& margin_t, const int& margin_b,
+	const int& margin_l, const int& margin_r
+);
+
 void fft_preprocess(const int& size);
 void fft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri , int i1);
 void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri , int i1);
@@ -21,5 +32,9 @@ void resize_near(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h,
 void resize_linear(int** ptrm, int* m1, int* ptri, int i1, int n);
 void resize_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w);
 void equalize(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int low = 0, int high = 256);
+
+void laplacian(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2);
+void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j1);
+void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, double* ptrj, int j1, int j2);
 
 #endif //TRANSFORM_H
