@@ -8,6 +8,44 @@
 
 using namespace std;
 
+void padding(
+	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
+	const int& margin_t, const int& margin_b,
+	const int& margin_l, const int& margin_r, const int& value
+){
+	*m1 = margin_t + i1 + margin_b;
+	*m2 = margin_l + i2 + margin_r;
+	*ptrm = new int[*m1 * *m2];
+
+	for(int i = 0; i != *m1; ++i){
+		for(int j = 0; j != *m2; ++j){
+			*ptrm[i * *m2 + j] = value;
+		}
+	}
+
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			*ptrm[(i + margin_t) * *m2 + j + margin_l] = ptri[i * i2 + j];
+		}
+	}
+}
+
+void trim(
+	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
+	const int& margin_t, const int& margin_b,
+	const int& margin_l, const int& margin_r
+){
+	*m1 = - margin_t + i1 - margin_b;
+	*m2 = - margin_l + i2 - margin_r;
+	*ptrm = new int[*m1 * *m2];
+
+	for(int i = 0; i != *m1; ++i){
+		for(int j = 0; j != *m2; ++j){
+			*ptrm[i * *m2 + j] = ptri[(i + margin_t) * i2 + j + margin_l];
+		}
+	}
+}
+
 int reverse_bit(const int& x, const int& n){
 	int result = 0;
 	for(int i = 0; i != n; ++i){
@@ -122,6 +160,100 @@ void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri, int 
 	*ptrm = new complex<double>[i1];
 	ifft(i1, (double*)ptri, ((double*)ptri) + 1, (double*)*ptrm, ((double*)*ptrm) + 1, 2);
 }
+
+void dct(const int& size, double* data_in, double* data_out, const int& step = 1){
+	const double c[2] = {1.0 / sqrt(2.0), 1};
+	double temp;
+
+	for(int i = 0; i != size; ++i){
+		temp = 0;
+		for(int j = 0; j != size; ++j){
+			temp += data_in[j * step] * table_cos[(2 * j + 1) * i % (size * 4)];
+		}
+		data_out[i * step] = c[i != 0] * temp;
+	}
+}
+
+void idct(const int& size, double* data_in, double* data_out, const int& step = 1){
+	const double c[2] = {1.0 / sqrt(2.0), 1};
+	double temp;
+
+	for(int j = 0; j != size; ++j){
+		temp = 0;
+		for(int i = 0; i != size; ++i){
+			temp += c[i != 0] * data_in[i * step] * table_cos[(2 * j + 1) * i % (size * 4)];
+		}
+		data_out[j * step] = temp * 2 / size;
+	}
+}
+
+void dct(double** ptrm, int* m1, double* ptri, int i1){
+	*m1 = i1;
+	*ptrm = new double[i1];
+	dct(i1, ptri, *ptrm);
+}
+void idct(double** ptrm, int* m1, double* ptri, int i1){
+	*m1 = i1;
+	*ptrm = new double[i1];
+	idct(i1, ptri, *ptrm);
+}
+
+//void fct_preprocess(const int& size){
+//	#if __cplusplus >= 201103L
+//		int p = log2(size);
+//	#else
+//		int p = log(size) / log(2);
+//	#endif
+//	for(int i = 0; i != size * 4; ++i){
+//		table_sin[i] = sin(i * pi / size / 2);
+//		table_cos[i] = cos(i * pi / size / 2);
+//	}
+//	for(int i = 0; i != size; ++i){
+//		table_reverse[i] = reverse_bit(i, p);
+//	}
+//}
+
+//void fct(const int& size, double* data_in, double* data_out, const int& step = 1){
+//	#if __cplusplus >= 201103L
+//		int p = log2(size) + 1;
+//	#else
+//		int p = log(size) / log(2) + 1;
+//	#endif
+//	int i1, i2;
+//	double cs, cc;
+//	double t1, t2;
+//	double* buffer = new double[size << 1];
+
+//	for(int i = 0; i != size; ++i){
+//		buffer[i] = data_in[table_reverse[i] * step];
+//		buffer[i] = data_in[(size * 2 - table_reverse[i] - 1) * step];
+//	}
+
+//	for(int i = 0; i != p; ++i){
+//		for(int j = 0; j != 1 << (p - i - 1); ++j){
+//			for(int k = 0; k != 1 << i; ++k){
+//				i1 = ((j << (i + 1)) + k);
+//				i2 = i1 + (1 << i);
+//				cc = table_cos[k << (p - i - 1)];
+//				t1 = buffer[i1];
+//				t2 = buffer[i2];
+//				buffer[i1] = t1 + cc * t2;
+//				buffer[i2] = t1 - cc * t2;
+//			}
+//		}
+//	}
+
+//	for(int i = 0; i != size; ++i){
+//		data_out[i * step] = buffer[i];
+//	}
+
+//	delete buffer;
+//}
+//void fct(double** ptrm, int* m1, double* ptri, int i1){
+//	*m1 = i1;
+//	*ptrm = new double[i1];
+//	fct(i1, ptri, *ptrm);
+//}
 
 void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3){
 	assert(i3 == 3);
@@ -321,13 +453,83 @@ void equalize(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int low, 
 			(*ptrm)[i * i2 + j] = table_map[ptri[i * i2 + j] - bound_l];
 		}
 	}
+}
 
-//	cout << "bound_l: " << bound_l << " bound_h: " << bound_h << endl;
-//	cout << "low: " << low << " high: " << high << endl;
-//	for(int i = 0; i != range; ++i){
-//		cout << table_count[i] << " ";
-//	}cout << endl;
-//	for(int i = 0; i != range; ++i){
-//		cout << table_map[i] << " ";
-//	}cout << endl;
+void differentiate(const int& size, int* data_in, int* data_out, const int& step = 1){
+	for(int i = 0; i != size - 1; ++i){
+		data_out[i * step] = data_in[(i + 1) * step] - data_in[i * step];
+	}
+}
+
+void laplacian(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2){
+	int* buffer_v;
+	int* buffer_h;
+
+	*m1 = i1;
+	*m2 = i2;
+	*ptrm = new int[i1 * i2];
+	buffer_v = new int[i1 * i2];
+	buffer_h = new int[i1 * i2];
+
+	for(int i = 0; i != i2; ++i){
+		differentiate(i1, ptri + i, *ptrm + i, i2);
+	}
+	for(int i = 0; i != i2; ++i){
+		differentiate(i1 - 1, *ptrm + i, buffer_v + i + i2, i2);
+	}
+
+	for(int i = 0; i != i1; ++i){
+		differentiate(i2, ptri + i * i2, *ptrm + i * i2);
+	}
+	for(int i = 0; i != i1; ++i){
+		differentiate(i2 - 1, *ptrm + i * i2, buffer_h + i * i2 + 1);
+	}
+
+	for(int i = 0; i != i2; ++i){
+		buffer_v[i] = 0;
+		buffer_v[i1 * i2 - i - 1] = 0;
+	}
+	for(int i = 0; i != i1; ++i){
+		buffer_h[i * i2] = 0;
+		buffer_h[i * i2 + i2 - 1] = 0;
+	}
+
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			(*ptrm)[i * i2 + j] = buffer_v[i * i2 + j] + buffer_h[i * i2 + j];
+		}
+	}
+}
+
+void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j1){
+	double value;
+	*m1 = i1 + j1 - 1;
+	*ptrm = new double[*m1];
+
+	for(int i = 0; i != *m1; ++i){
+		value = 0;
+		for(int j = max(0, j1 - i - 1); j != min(i1 + j1 - i - 1, j1); ++j){
+			value += ptri[i + j - j1 + 1] * ptrj[j];
+		}
+		(*ptrm)[i] = value;
+	}
+}
+
+void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, double* ptrj, int j1, int j2){
+	double value;
+	*m1 = i1 + j1 - 1;
+	*m2 = i2 + j2 - 1;
+	*ptrm = new double[*m1 * *m2];
+
+	for(int i = 0; i != *m1; ++i){
+		for(int j = 0; j != *m2; ++j){
+			value = 0;
+			for(int k = max(0, j1 - i - 1); k != min(i1 + j1 - i - 1, j1); ++k){
+				for(int l = max(0, j2 - j - 1); l != min(i2 + j2 - j - 1, j2); ++l){
+					value += ptri[(i + k - j1 + 1) * i2 + (j + l - j2 + 1)] * ptrj[k * j2 + l];
+				}
+			}
+			(*ptrm)[i * *m2 + j] = value;
+		}
+	}
 }
