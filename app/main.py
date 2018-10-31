@@ -43,15 +43,6 @@ class dipl_app(wx.App):
 #		frame_icon.CopyFromBitmap(wx.Bitmap(wx.Image("../img/")));
 #		self.frame.SetIcon(frame_icon);
 
-		#create background elements
-		sizer_base = wx.BoxSizer(wx.HORIZONTAL);
-		self.frame.SetSizer(sizer_base);
-		self.panel_base = wx.Panel(self.frame);
-		self.panel_base.SetBackgroundColour(wx.BLACK);
-		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND,5);
-		sizer_main = wx.BoxSizer(wx.HORIZONTAL);
-		self.panel_base.SetSizer(sizer_main);
-
 		#create a menu bar
 		self.menubar = wx.MenuBar();
 		self.frame.SetMenuBar(self.menubar);
@@ -122,8 +113,43 @@ class dipl_app(wx.App):
 		);
 		menu_help.Append(menu_about);
 
+		#create background elements
+		sizer_base = wx.BoxSizer(wx.HORIZONTAL);
+		self.frame.SetSizer(sizer_base);
+		self.panel_base = wx.Panel(self.frame);
+		self.panel_base.SetBackgroundColour(wx.BLACK);
+		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND,5);
+		sizer_main = wx.BoxSizer(wx.VERTICAL);
+		self.panel_base.SetSizer(sizer_main);
+
+		#create a toolbar
+		tool_mouse = wx.ToolBar(self.frame, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		tool_mouse.SetToolBitmapSize((24, 24));
+		tool_mouse.AddTool(
+			wx.NewId(), "default", wx.Bitmap("../icon/default.png"), shortHelp = "default"
+		);
+		tool_mouse.AddTool(
+			wx.NewId(), "grab", wx.Bitmap("../icon/grab.png"), shortHelp = "grab"
+		);
+		tool_mouse.AddTool(
+			wx.NewId(), "pencil", wx.Bitmap("../icon/pencil.png"), shortHelp = "pencil"
+		);
+		tool_mouse.AddTool(
+			wx.NewId(), "zoom_in", wx.Bitmap("../icon/zoom-in.png"), shortHelp = "zoom in"
+		);
+		tool_mouse.AddTool(
+			wx.NewId(), "zoom_out", wx.Bitmap("../icon/zoom-out.png"), shortHelp = "zoom out"
+		);
+		tool_mouse.Realize();
+		sizer_main.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 5);
+
+		#create a panel to draw pictures
+		self.panel_draw = wx.Panel(self.panel_base);
+		self.panel_draw.SetBackgroundColour(wx.BLACK);
+		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
+
 		#bind interaction events
-		self.panel_base.Bind(wx.EVT_PAINT, self.on_panel_base_paint);
+		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
 		self.Bind(wx.EVT_MENU, self.on_open, id = menu_open.GetId());
 		#self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
 		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_near.GetId());
@@ -151,8 +177,8 @@ class dipl_app(wx.App):
 		if not (self.img is None):
 			dc.DrawBitmap(self.img, 0, 0);
 
-	def on_panel_base_paint(self, event):
-		dc = wx.ClientDC(self.panel_base);
+	def on_panel_draw_paint(self, event):
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 	def on_open(self, event):
@@ -160,7 +186,7 @@ class dipl_app(wx.App):
 		if dialog.ShowModal() == wx.ID_OK:
 			self.path = dialog.GetPath();
 			self.img = wx.Bitmap(self.path);
-			dc = wx.ClientDC(self.panel_base);
+			dc = wx.ClientDC(self.panel_draw);
 			self.do_paint(dc);
 
 	def on_resize(self, event):
@@ -196,7 +222,7 @@ class dipl_app(wx.App):
 			return;
 
 		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_base);
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 	def on_equalize(self, event):
@@ -211,7 +237,7 @@ class dipl_app(wx.App):
 			result[:, :, i] = jpeg.equalize(data[:, :, i].copy());
 
 		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_base);
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 	def on_power(self, event):
@@ -232,7 +258,7 @@ class dipl_app(wx.App):
 			result[:, :, i] = jpeg.power_law(data[:, :, i].copy(), gamma);
 
 		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_base);
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 	def on_blur(self, event):
@@ -260,7 +286,7 @@ class dipl_app(wx.App):
 			result[:, :, i] = jpeg.correlate2(data[:, :, i].astype(np.float64), kernel);
 
 		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_base);
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 	def on_sharpen(self, event):
@@ -284,7 +310,7 @@ class dipl_app(wx.App):
 		result[result < 0] = 0;
 
 		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_base);
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 	def on_laplacian(self, event):
@@ -303,7 +329,7 @@ class dipl_app(wx.App):
 		#result = result.astype(np.float64) * 255 / np.max(result);
 
 		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_base);
+		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
 
 if __name__ == "__main__":
