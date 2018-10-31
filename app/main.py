@@ -52,7 +52,6 @@ class dimage:
 		self.scale *= np_scale;
 
 	def zoom_fit(self, size):
-		print(self.data.shape, size);
 		h = self.data.shape[0];
 		w = self.data.shape[1];
 		(sh, sw) = size;
@@ -62,8 +61,6 @@ class dimage:
 		else:
 			self.scale = np.array((sw / w));
 			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
-		#self.pos = self.pos[::-1];
-		print(self.pos, self.scale)
 
 	def resize_near(self, size):
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
@@ -89,7 +86,7 @@ class dimage:
 			result[:, :, i] = jpeg.power_law(self.data[:, :, i].copy(), gamma);
 		self.data = result;
 
-	def convolute(self, kernel):
+	def correlate(self, kernel):
 		shape = [i for i in self.data.shape];
 		shape[0] += kernel.shape[0] - 1;
 		shape[1] += kernel.shape[1] - 1;
@@ -137,8 +134,8 @@ class dipl_frame(wx.Frame):
 		self.SetMenuBar(self.menubar);
 		menu_file = wx.Menu();
 		self.menubar.Append(menu_file, "&File");
-		menu_edit = wx.Menu();
-		self.menubar.Append(menu_edit, "&Edit");
+#		menu_edit = wx.Menu();
+#		self.menubar.Append(menu_edit, "&Edit");
 		menu_help = wx.Menu();
 		self.menubar.Append(menu_help, "&Help");
 
@@ -155,54 +152,6 @@ class dipl_frame(wx.Frame):
 		);
 		#self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
 		menu_file.Append(menu_save);
-
-		#add items to menu_edit
-		menu_resize = wx.Menu();
-		menu_edit.Append(wx.NewId(), "&Resize Image", menu_resize);
-		menu_equalize = wx.MenuItem(
-			menu_edit, id = wx.NewId(),
-			text = "&Histogram Equalization"
-		);
-		self.Bind(wx.EVT_MENU, self.on_equalize, id = menu_equalize.GetId());
-		menu_edit.Append(menu_equalize);
-		menu_power = wx.MenuItem(
-			menu_edit, id = wx.NewId(),
-			text = "&Power Transform"
-		);
-		self.Bind(wx.EVT_MENU, self.on_power, id = menu_power.GetId());
-		menu_edit.Append(menu_power);
-		menu_blur = wx.MenuItem(
-			menu_edit, id = wx.NewId(),
-			text = "&Blur Image"
-		);
-		self.Bind(wx.EVT_MENU, self.on_blur, id = menu_blur.GetId());
-		menu_edit.Append(menu_blur);
-		menu_sharpen = wx.MenuItem(
-			menu_edit, id = wx.NewId(),
-			text = "&Sharpen Image"
-		);
-		self.Bind(wx.EVT_MENU, self.on_sharpen, id = menu_sharpen.GetId());
-		menu_edit.Append(menu_sharpen);
-		menu_laplacian = wx.MenuItem(
-			menu_edit, id = wx.NewId(),
-			text = "&Laplacian"
-		);
-		self.Bind(wx.EVT_MENU, self.on_laplacian, id = menu_laplacian.GetId());
-		menu_edit.Append(menu_laplacian);
-
-		#add items to menu_resize
-		self.menu_resize_near = wx.MenuItem(
-			menu_resize, id = wx.NewId(),
-			text = "&Nearest Point"
-		);
-		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_near.GetId());
-		menu_resize.Append(self.menu_resize_near);
-		self.menu_resize_linear = wx.MenuItem(
-			menu_resize, id = wx.NewId(),
-			text = "&Linear"
-		);
-		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_linear.GetId());
-		menu_resize.Append(self.menu_resize_linear);
 
 		#add items to menu_help
 		menu_about = wx.MenuItem(
@@ -290,7 +239,7 @@ class dipl_frame(wx.Frame):
 				"Sharpen Image",
 				"Laplacian"
 			],
-			size=(180,-1)
+			size = (180,-1)
 		);
 		self.choice_transform.SetSelection(0);
 		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
@@ -309,6 +258,7 @@ class dipl_frame(wx.Frame):
 		tool_transform.AddTool(
 			self.id_tool_run, "transform", wx.Bitmap("../icon/right_arrow.png"), shortHelp = "transform"
 		);
+		self.Bind(wx.EVT_TOOL, self.on_transform, id = self.id_tool_run);
 
 		tool_transform.AddSeparator();
 		tool_transform.Realize();
@@ -529,8 +479,7 @@ class dipl_frame(wx.Frame):
 				self.text_input1.SetValue(str(300));
 				self.text_input2.SetValue(str(400));
 			return;
-		else:
-			num += 2;
+		num += 2;
 
 		if sel == num:
 			self.text_input_info1.Hide();
@@ -538,8 +487,7 @@ class dipl_frame(wx.Frame):
 			self.text_input1.Hide();
 			self.text_input2.Hide();
 			return;
-		else:
-			num += 1;
+		num += 1;
 
 		if sel == num:
 			self.text_input_info1.Show();
@@ -549,8 +497,7 @@ class dipl_frame(wx.Frame):
 			self.text_input2.Hide();
 			self.text_input1.SetValue(str(0.65));
 			return;
-		else:
-			num += 1;
+		num += 1;
 
 		if sel == num:
 			self.text_input_info1.Show();
@@ -560,8 +507,7 @@ class dipl_frame(wx.Frame):
 			self.text_input2.Hide();
 			self.text_input1.SetValue(str(3));
 			return;
-		else:
-			num += 1;
+		num += 1;
 
 		if sel == num:
 			self.text_input_info1.Show();
@@ -571,8 +517,7 @@ class dipl_frame(wx.Frame):
 			self.text_input2.Hide();
 			self.text_input1.SetValue(str(-0.65));
 			return;
-		else:
-			num += 1;
+		num += 1;
 
 		if sel == num:
 			self.text_input_info1.Hide();
@@ -580,11 +525,81 @@ class dipl_frame(wx.Frame):
 			self.text_input1.Hide();
 			self.text_input2.Hide();
 			return;
-		else:
-			num += 1;
+		num += 1;
 
-	def on_transform():
-		pass;
+	def on_transform(self, event):
+		if self.img is None:
+			return;
+
+		sel = self.choice_transform.GetCurrentSelection();
+		num = 0;
+
+		if sel == num:
+			height = int(self.text_input1.GetValue());
+			width = int(self.text_input2.GetValue());
+			if height <= 0 or width <= 0:
+				return;
+			self.img.resize_near(np.array((height, width)));
+			dc = wx.ClientDC(self.panel_draw);
+			dc.Clear();
+			self.img.display(dc);
+			return;
+		num += 1;
+
+		if sel == num:
+			height = int(self.text_input1.GetValue());
+			width = int(self.text_input2.GetValue());
+			if height <= 0 or width <= 0:
+				return;
+			self.img.resize_linear(np.array((height, width)));
+			dc = wx.ClientDC(self.panel_draw);
+			dc.Clear();
+			self.img.display(dc);
+			return;
+		num += 1;
+
+		if sel == num:
+			self.img.equalize();
+			self.img.display(wx.ClientDC(self.panel_draw));
+			return;
+		num += 1;
+
+		if sel == num:
+			gamma = float(self.text_input1.GetValue());
+			if gamma <= 0:
+				return;
+			self.img.power_law(gamma);
+			self.img.display(wx.ClientDC(self.panel_draw));
+			return;
+		num += 1;
+
+		if sel == num:
+			kernel_size = int(self.text_input1.GetValue());
+			if kernel_size < 0:
+				return;
+			kernel = np.array([
+				[
+					min([i + 1, j + 1, kernel_size - i, kernel_size - j]) for j in range(kernel_size)
+				] for i in range(kernel_size)
+			], dtype = np.float64);
+			kernel /= np.sum(kernel);
+			self.img.correlate(kernel);
+			self.img.display(wx.ClientDC(self.panel_draw));
+			return;
+		num += 1;
+
+		if sel == num:
+			alpha = float(self.text_input1.GetValue());
+			self.img.sharpen(alpha);
+			self.img.display(wx.ClientDC(self.panel_draw));
+			return;
+		num += 1;
+
+		if sel == num:
+			self.img.laplacian();
+			self.img.display(wx.ClientDC(self.panel_draw));
+			return;
+		num += 1;
 
 class dipl_app(wx.App):
 
