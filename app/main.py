@@ -22,30 +22,21 @@ def numpy2img(data):
 	wximg = wx.Image(data.shape[1], data.shape[0], buf).ConvertToBitmap();
 	return wximg;
 
-class dipl_app(wx.App):
+class dipl_frame(wx.Frame):
+	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
+		wx.Frame.__init__(self, parent, id, title, pos, size, style);
 
-	#overload the initializer
-	def OnInit(self):
-		self.init_frame();
-		return True;
-
-	#initialize the frame
-	def init_frame(self):
-
-		#create a frame
-		self.frame = wx.Frame();
-		self.frame.Create(None, title = "Digital Image Processing", size = (600, 400));
 		font_text = wx.Font(11, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, faceName = "consolas");
-		self.frame.SetFont(font_text)
+		self.SetFont(font_text)
 
 		#set the icon of the frame
 #		frame_icon = wx.Icon();
 #		frame_icon.CopyFromBitmap(wx.Bitmap(wx.Image("../img/")));
-#		self.frame.SetIcon(frame_icon);
+#		self.SetIcon(frame_icon);
 
 		#create a menu bar
 		self.menubar = wx.MenuBar();
-		self.frame.SetMenuBar(self.menubar);
+		self.SetMenuBar(self.menubar);
 		menu_file = wx.Menu();
 		self.menubar.Append(menu_file, "&File");
 		menu_edit = wx.Menu();
@@ -125,47 +116,47 @@ class dipl_app(wx.App):
 
 		#create background elements
 		sizer_base = wx.BoxSizer(wx.HORIZONTAL);
-		self.frame.SetSizer(sizer_base);
-		self.panel_base = wx.Panel(self.frame);
+		self.SetSizer(sizer_base);
+		self.panel_base = wx.Panel(self);
 		self.panel_base.SetBackgroundColour(wx.BLACK);
 		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND,5);
 		sizer_main = wx.BoxSizer(wx.VERTICAL);
 		self.panel_base.SetSizer(sizer_main);
 
 		#create a toolbar
-		tool_mouse = wx.ToolBar(self.frame, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		tool_mouse = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_NODIVIDER);
 		tool_mouse.SetToolBitmapSize((24, 24));
 		self.id_tool_normal = wx.NewId();
 		self.icon_normal = wx.Bitmap("../icon/default.png");
 		tool_mouse.AddTool(
 			self.id_tool_normal, "normal", self.icon_normal, shortHelp = "normal"
 		);
-		self.frame.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
+		self.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
 		self.id_tool_grab = wx.NewId();
 		self.icon_grab = wx.Bitmap("../icon/grab.png");
 		self.icon_grabbing = wx.Bitmap("../icon/grabbing.png");
 		tool_mouse.AddTool(
 			self.id_tool_grab, "grab", self.icon_grab, shortHelp = "grab"
 		);
-		self.frame.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
+		self.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
 		self.id_tool_pencil = wx.NewId();
 		self.icon_pencil = wx.Bitmap("../icon/pencil.png");
 		tool_mouse.AddTool(
 			self.id_tool_pencil, "pencil", self.icon_pencil, shortHelp = "pencil"
 		);
-		self.frame.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
+		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
 		self.id_zoom_in = wx.NewId();
 		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
 		tool_mouse.AddTool(
 			self.id_zoom_in, "zoom_in", self.icon_zoom_in, shortHelp = "zoom in"
 		);
-		self.frame.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
+		self.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
 		self.id_zoom_out = wx.NewId();
 		self.icon_zoom_out = wx.Bitmap("../icon/zoom-out.png");
 		tool_mouse.AddTool(
 			self.id_zoom_out, "zoom_out", self.icon_zoom_out, shortHelp = "zoom out"
 		);
-		self.frame.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
+		self.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
 		tool_mouse.Realize();
 		sizer_main.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 5);
 
@@ -176,13 +167,13 @@ class dipl_app(wx.App):
 		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
 
 		#show the frame
-		self.frame.Show(True);
+		self.Show(True);
 
 		self.path = None;
 		self.img = None;
 
 	def on_quit(self, event):
-		self.frame.Close();
+		self.Close();
 
 	def on_about(self, event):
 		wx.MessageBox("Digital Image Processing Library\nBy Rick", "About");
@@ -196,7 +187,7 @@ class dipl_app(wx.App):
 		self.do_paint(dc);
 
 	def on_open(self, event):
-		dialog = wx.FileDialog(self.frame, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png)|*.bmp;*.jpg;*.jpeg;*.png", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
+		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png)|*.bmp;*.jpg;*.jpeg;*.png", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.path = dialog.GetPath();
 			self.img = wx.Bitmap(self.path);
@@ -207,14 +198,14 @@ class dipl_app(wx.App):
 		if self.img is None:
 			return;
 
-		dialog = wx.TextEntryDialog(self.frame, message = "Please input the height of the image.", caption = "Resize", value = str(self.img.GetHeight()));
+		dialog = wx.TextEntryDialog(self, message = "Please input the height of the image.", caption = "Resize", value = str(self.img.GetHeight()));
 		if dialog.ShowModal() == wx.ID_OK:
 			height = int(dialog.GetValue());
 			if height <= 0:
 				return;
 		else:
 			return;
-		dialog = wx.TextEntryDialog(self.frame, message = "Please input the width of the image.", caption = "Resize", value = str(self.img.GetWidth()));
+		dialog = wx.TextEntryDialog(self, message = "Please input the width of the image.", caption = "Resize", value = str(self.img.GetWidth()));
 		if dialog.ShowModal() == wx.ID_OK:
 			width = int(dialog.GetValue());
 			if width <= 0:
@@ -258,7 +249,7 @@ class dipl_app(wx.App):
 		if self.img is None:
 			return;
 
-		dialog = wx.TextEntryDialog(self.frame, message = "Please input the power.", caption = "Power Law", value = str(0.65));
+		dialog = wx.TextEntryDialog(self, message = "Please input the power.", caption = "Power Law", value = str(0.65));
 		if dialog.ShowModal() == wx.ID_OK:
 			gamma = float(dialog.GetValue());
 		else:
@@ -279,7 +270,7 @@ class dipl_app(wx.App):
 		if self.img is None:
 			return;
 
-		dialog = wx.TextEntryDialog(self.frame, message = "Please input the kernel size.", caption = "Blur", value = str(5));
+		dialog = wx.TextEntryDialog(self, message = "Please input the kernel size.", caption = "Blur", value = str(5));
 		if dialog.ShowModal() == wx.ID_OK:
 			kernel_size = int(dialog.GetValue());
 			if kernel_size <= 0:
@@ -307,7 +298,7 @@ class dipl_app(wx.App):
 		if self.img is None:
 			return;
 
-		dialog = wx.TextEntryDialog(self.frame, message = "Please input the coefficient of laplacian.", caption = "Power Law", value = str(-0.65));
+		dialog = wx.TextEntryDialog(self, message = "Please input the coefficient of laplacian.", caption = "Power Law", value = str(-0.65));
 		if dialog.ShowModal() == wx.ID_OK:
 			alpha = float(dialog.GetValue());
 		else:
@@ -360,7 +351,13 @@ class dipl_app(wx.App):
 
 	def on_zoom_out(self, event):
 		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_out.ConvertToImage()));
-		
+
+class dipl_app(wx.App):
+
+	#overload the initializer
+	def OnInit(self):
+		self.frame = dipl_frame(None, title = "Digital Image Processing", size = (800, 600));
+		return True;
 
 if __name__ == "__main__":
 	app = dipl_app(False);
