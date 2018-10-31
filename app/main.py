@@ -22,6 +22,85 @@ def numpy2img(data):
 	wximg = wx.Image(data.shape[1], data.shape[0], buf).ConvertToBitmap();
 	return wximg;
 
+class dimage:
+	def __init__(self, data = None):
+		self.data = data;
+		self.pos = np.array([0, 0], dtype = np.int32);
+		self.scale = np.array([1, 1], dtype = np.float64);
+
+	def load(self, filename):
+		self.data = img2numpy(wx.Bitmap(filename));
+
+	def save(self, filename):
+		pass;
+
+	def display(self, dc):
+		dc.DrawBitmap(numpy2img(self.data), self.pos[0], self.pos[1]);
+
+	def move(self, distance):
+		self.pos += distance;
+
+	def rescale(self, pos, scale):
+		np_pos = np.array(pos);
+		np_scale = np.array(scale);
+		self.pos = (np_pos + np_scale * (self.pos - np_pos)).astype(np.int32);
+		self.scale *= np_scale;
+
+	def resize_near(self, size):
+		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
+		self.data = result;
+
+	def resize_linear(self, size):
+		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
+		self.data = result;
+
+	def equalize(self):
+		result = np.empty(self.data.shape, dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.equalize(self.data[:, :, i].copy());
+		self.data = result;
+
+	def power_law(self, gamma):
+		result = np.empty(self.data.shape, dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.power_law(self.data[:, :, i].copy(), gamma);
+		self.data = result;
+
+	def convolute(self, kernel):
+		shape = [i for i in self.data.shape];
+		shape[0] += kernel.shape[0] - 1;
+		shape[1] += kernel.shape[1] - 1;
+		result = np.empty(shape, dtype = np.float64);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.correlate2(self.data[:, :, i].astype(np.float64), kernel);
+		result[result > 255] = 255;
+		result[result < 0] = 0;
+		result = result.astype(np.int32);
+		self.data = result;
+
+	def sharpen(self, alpha):
+		result = np.empty(self.data.shape, dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
+		result = self.data + result * alpha;
+		result[result > 255] = 255;
+		result[result < 0] = 0;
+		result = result.astype(np.int32);
+		self.data = result;
+
+	def laplacian(self):
+		result = np.empty(self.data.shape, dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
+		result -= np.min(result);
+		result = result.astype(np.float64) * 255 / np.max(result);
+		result = result.astype(np.int32);
+		self.data = result;
+
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
 		wx.Frame.__init__(self, parent, id, title, pos, size, style);
@@ -178,34 +257,33 @@ class dipl_frame(wx.Frame):
 	def on_about(self, event):
 		wx.MessageBox("Digital Image Processing Library\nBy Rick", "About");
 
-	def do_paint(self, dc):
-		if not (self.img is None):
-			dc.DrawBitmap(self.img, 0, 0);
-
 	def on_panel_draw_paint(self, event):
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		if not (self.img is None):
+			self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_open(self, event):
 		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png)|*.bmp;*.jpg;*.jpeg;*.png", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.path = dialog.GetPath();
-			self.img = wx.Bitmap(self.path);
-			dc = wx.ClientDC(self.panel_draw);
-			self.do_paint(dc);
+#			self.img = wx.Bitmap(self.path);
+#			dc = wx.ClientDC(self.panel_draw);
+#			self.do_paint(dc);
+			self.img = dimage();
+			self.img.load(self.path);
+			self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_resize(self, event):
 		if self.img is None:
 			return;
 
-		dialog = wx.TextEntryDialog(self, message = "Please input the height of the image.", caption = "Resize", value = str(self.img.GetHeight()));
+		dialog = wx.TextEntryDialog(self, message = "Please input the height of the image.", caption = "Resize", value = str(self.img.data.shape[0]));
 		if dialog.ShowModal() == wx.ID_OK:
 			height = int(dialog.GetValue());
 			if height <= 0:
 				return;
 		else:
 			return;
-		dialog = wx.TextEntryDialog(self, message = "Please input the width of the image.", caption = "Resize", value = str(self.img.GetWidth()));
+		dialog = wx.TextEntryDialog(self, message = "Please input the width of the image.", caption = "Resize", value = str(self.img.data.shape[1]));
 		if dialog.ShowModal() == wx.ID_OK:
 			width = int(dialog.GetValue());
 			if width <= 0:
@@ -213,37 +291,20 @@ class dipl_frame(wx.Frame):
 		else:
 			return;
 
-		data = img2numpy(self.img);
-
-		result = np.empty((height, width, data.shape[2]), dtype = np.int32);
-
 		if event.GetId() == self.menu_resize_near.GetId():
-			for i in range(data.shape[2]):
-				result[:, :, i] = jpeg.resize_near(data[:, :, i].copy(), height, width);
+			self.img.resize_near(np.array((height, width)));
 		elif event.GetId() == self.menu_resize_linear.GetId():
-			for i in range(data.shape[2]):
-				result[:, :, i] = jpeg.resize_linear(data[:, :, i].copy(), height, width);
+			self.img.resize_linear(np.array((height, width)));
 		else:
 			return;
-
-		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_equalize(self, event):
 		if self.img is None:
 			return;
 
-		data = img2numpy(self.img);
-
-		result = np.empty(data.shape, dtype = np.int32);
-
-		for i in range(data.shape[2]):
-			result[:, :, i] = jpeg.equalize(data[:, :, i].copy());
-
-		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		self.img.equalize();
+		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_power(self, event):
 		if self.img is None:
@@ -255,16 +316,8 @@ class dipl_frame(wx.Frame):
 		else:
 			return;
 
-		data = img2numpy(self.img);
-
-		result = np.empty(data.shape, dtype = np.int32);
-
-		for i in range(data.shape[2]):
-			result[:, :, i] = jpeg.power_law(data[:, :, i].copy(), gamma);
-
-		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		self.img.power_law(gamma);
+		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_blur(self, event):
 		if self.img is None:
@@ -278,21 +331,11 @@ class dipl_frame(wx.Frame):
 		else:
 			return;
 
-		data = img2numpy(self.img);
 		kernel = np.array([[min([i + 1, j + 1, kernel_size - i, kernel_size - j]) for j in range(kernel_size)] for i in range(kernel_size)], dtype = np.float64);
 		kernel /= np.sum(kernel);
 
-		shape = [i for i in data.shape];
-		shape[0] += kernel_size - 1;
-		shape[1] += kernel_size - 1;
-		result = np.empty(shape, dtype = np.float64);
-
-		for i in range(data.shape[2]):
-			result[:, :, i] = jpeg.correlate2(data[:, :, i].astype(np.float64), kernel);
-
-		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		self.img.convolute(kernel);
+		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_sharpen(self, event):
 		if self.img is None:
@@ -304,38 +347,15 @@ class dipl_frame(wx.Frame):
 		else:
 			return;
 
-		data = img2numpy(self.img);
-
-		result = np.empty(data.shape, dtype = np.int32);
-
-		for i in range(data.shape[2]):
-			result[:, :, i] = jpeg.laplacian(data[:, :, i].copy());
-		result = data + result * alpha;
-		result[result > 255] = 255;
-		result[result < 0] = 0;
-
-		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		self.img.sharpen(alpha);
+		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_laplacian(self, event):
 		if self.img is None:
 			return;
 
-		data = img2numpy(self.img);
-
-		result = np.empty(data.shape, dtype = np.int32);
-
-		for i in range(data.shape[2]):
-			result[:, :, i] = jpeg.laplacian(data[:, :, i].copy());
-		result += np.min(result);
-		#result[result > 255] = 255;
-		#result[result < 0] = 0;
-		#result = result.astype(np.float64) * 255 / np.max(result);
-
-		self.img = numpy2img(result);
-		dc = wx.ClientDC(self.panel_draw);
-		self.do_paint(dc);
+		self.img.laplacian();
+		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_normal(self, event):
 		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
