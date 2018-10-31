@@ -10,7 +10,7 @@ import numpy as np;
 from jpeg import jpeg;
 
 def img2numpy(wximg):
-	img = wximg.ConvertToImage()
+	img = wximg.ConvertToImage();
 	buf = img.GetDataBuffer();
 	data = np.frombuffer(buf, dtype="uint8");
 	data = data.reshape((img.GetHeight(), img.GetWidth(), -1));
@@ -58,11 +58,13 @@ class dipl_app(wx.App):
 			menu_file, id = wx.NewId(),
 			text = "&Open File\tCtrl-O"
 		);
+		self.Bind(wx.EVT_MENU, self.on_open, id = menu_open.GetId());
 		menu_file.Append(menu_open);
 		menu_save = wx.MenuItem(
 			menu_file, id = wx.NewId(),
 			text = "&Save File\tCtrl-S"
 		);
+		#self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
 		menu_file.Append(menu_save);
 
 		#add items to menu_edit
@@ -72,26 +74,31 @@ class dipl_app(wx.App):
 			menu_edit, id = wx.NewId(),
 			text = "&Histogram Equalization"
 		);
+		self.Bind(wx.EVT_MENU, self.on_equalize, id = menu_equalize.GetId());
 		menu_edit.Append(menu_equalize);
 		menu_power = wx.MenuItem(
 			menu_edit, id = wx.NewId(),
 			text = "&Power Transform"
 		);
+		self.Bind(wx.EVT_MENU, self.on_power, id = menu_power.GetId());
 		menu_edit.Append(menu_power);
 		menu_blur = wx.MenuItem(
 			menu_edit, id = wx.NewId(),
 			text = "&Blur Image"
 		);
+		self.Bind(wx.EVT_MENU, self.on_blur, id = menu_blur.GetId());
 		menu_edit.Append(menu_blur);
 		menu_sharpen = wx.MenuItem(
 			menu_edit, id = wx.NewId(),
 			text = "&Sharpen Image"
 		);
+		self.Bind(wx.EVT_MENU, self.on_sharpen, id = menu_sharpen.GetId());
 		menu_edit.Append(menu_sharpen);
 		menu_laplacian = wx.MenuItem(
 			menu_edit, id = wx.NewId(),
 			text = "&Laplacian"
 		);
+		self.Bind(wx.EVT_MENU, self.on_laplacian, id = menu_laplacian.GetId());
 		menu_edit.Append(menu_laplacian);
 
 		#add items to menu_resize
@@ -99,11 +106,13 @@ class dipl_app(wx.App):
 			menu_resize, id = wx.NewId(),
 			text = "&Nearest Point"
 		);
+		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_near.GetId());
 		menu_resize.Append(self.menu_resize_near);
 		self.menu_resize_linear = wx.MenuItem(
 			menu_resize, id = wx.NewId(),
 			text = "&Linear"
 		);
+		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_linear.GetId());
 		menu_resize.Append(self.menu_resize_linear);
 
 		#add items to menu_help
@@ -111,6 +120,7 @@ class dipl_app(wx.App):
 			menu_help, id = wx.NewId(),
 			text = "&About\tF1"
 		);
+		self.Bind(wx.EVT_MENU, self.on_about, id = menu_about.GetId());
 		menu_help.Append(menu_about);
 
 		#create background elements
@@ -125,21 +135,37 @@ class dipl_app(wx.App):
 		#create a toolbar
 		tool_mouse = wx.ToolBar(self.frame, style = wx.TB_FLAT | wx.TB_NODIVIDER);
 		tool_mouse.SetToolBitmapSize((24, 24));
+		self.id_tool_normal = wx.NewId();
+		self.icon_normal = wx.Bitmap("../icon/default.png");
 		tool_mouse.AddTool(
-			wx.NewId(), "default", wx.Bitmap("../icon/default.png"), shortHelp = "default"
+			self.id_tool_normal, "normal", self.icon_normal, shortHelp = "normal"
 		);
+		self.frame.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
+		self.id_tool_grab = wx.NewId();
+		self.icon_grab = wx.Bitmap("../icon/grab.png");
+		self.icon_grabbing = wx.Bitmap("../icon/grabbing.png");
 		tool_mouse.AddTool(
-			wx.NewId(), "grab", wx.Bitmap("../icon/grab.png"), shortHelp = "grab"
+			self.id_tool_grab, "grab", self.icon_grab, shortHelp = "grab"
 		);
+		self.frame.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
+		self.id_tool_pencil = wx.NewId();
+		self.icon_pencil = wx.Bitmap("../icon/pencil.png");
 		tool_mouse.AddTool(
-			wx.NewId(), "pencil", wx.Bitmap("../icon/pencil.png"), shortHelp = "pencil"
+			self.id_tool_pencil, "pencil", self.icon_pencil, shortHelp = "pencil"
 		);
+		self.frame.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
+		self.id_zoom_in = wx.NewId();
+		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
 		tool_mouse.AddTool(
-			wx.NewId(), "zoom_in", wx.Bitmap("../icon/zoom-in.png"), shortHelp = "zoom in"
+			self.id_zoom_in, "zoom_in", self.icon_zoom_in, shortHelp = "zoom in"
 		);
+		self.frame.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
+		self.id_zoom_out = wx.NewId();
+		self.icon_zoom_out = wx.Bitmap("../icon/zoom-out.png");
 		tool_mouse.AddTool(
-			wx.NewId(), "zoom_out", wx.Bitmap("../icon/zoom-out.png"), shortHelp = "zoom out"
+			self.id_zoom_out, "zoom_out", self.icon_zoom_out, shortHelp = "zoom out"
 		);
+		self.frame.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
 		tool_mouse.Realize();
 		sizer_main.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 5);
 
@@ -147,19 +173,7 @@ class dipl_app(wx.App):
 		self.panel_draw = wx.Panel(self.panel_base);
 		self.panel_draw.SetBackgroundColour(wx.BLACK);
 		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
-
-		#bind interaction events
 		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
-		self.Bind(wx.EVT_MENU, self.on_open, id = menu_open.GetId());
-		#self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
-		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_near.GetId());
-		self.Bind(wx.EVT_MENU, self.on_resize, id = self.menu_resize_linear.GetId());
-		self.Bind(wx.EVT_MENU, self.on_equalize, id = menu_equalize.GetId());
-		self.Bind(wx.EVT_MENU, self.on_power, id = menu_power.GetId());
-		self.Bind(wx.EVT_MENU, self.on_blur, id = menu_blur.GetId());
-		self.Bind(wx.EVT_MENU, self.on_sharpen, id = menu_sharpen.GetId());
-		self.Bind(wx.EVT_MENU, self.on_laplacian, id = menu_laplacian.GetId());
-		self.Bind(wx.EVT_MENU, self.on_about, id = menu_about.GetId());
 
 		#show the frame
 		self.frame.Show(True);
@@ -331,6 +345,22 @@ class dipl_app(wx.App):
 		self.img = numpy2img(result);
 		dc = wx.ClientDC(self.panel_draw);
 		self.do_paint(dc);
+
+	def on_normal(self, event):
+		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
+
+	def on_grab(self, event):
+		self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
+
+	def on_pencil(self, event):
+		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+
+	def on_zoom_in(self, event):
+		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_in.ConvertToImage()));
+
+	def on_zoom_out(self, event):
+		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_out.ConvertToImage()));
+		
 
 if __name__ == "__main__":
 	app = dipl_app(False);
