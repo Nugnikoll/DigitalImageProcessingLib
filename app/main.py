@@ -40,7 +40,7 @@ class dimage:
 		data = np.empty(shape, dtype = np.int32);
 		for i in range(shape[2]):
 			data[:,:,i] = jpeg.resize_near(self.data[:, :, i].copy(), int(shape[0]), int(shape[1]));
-		dc.DrawBitmap(numpy2img(data), self.pos[0], self.pos[1]);
+		dc.DrawBitmap(numpy2img(data), self.pos[1], self.pos[0]);
 
 	def move(self, distance):
 		self.pos += distance;
@@ -50,6 +50,20 @@ class dimage:
 		np_scale = np.array(scale);
 		self.pos = (np_pos + np_scale * (self.pos - np_pos)).astype(np.int32);
 		self.scale *= np_scale;
+
+	def zoom_fit(self, size):
+		print(self.data.shape, size);
+		h = self.data.shape[0];
+		w = self.data.shape[1];
+		(sh, sw) = size;
+		if h * sw > w * sh:
+			self.scale = np.array((sh / h));
+			self.pos = np.array((0, (sw - sh * w / h) / 2), dtype = np.int32);
+		else:
+			self.scale = np.array((sw / w));
+			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
+		#self.pos = self.pos[::-1];
+		print(self.pos, self.scale)
 
 	def resize_near(self, size):
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
@@ -202,20 +216,29 @@ class dipl_frame(wx.Frame):
 		sizer_base = wx.BoxSizer(wx.HORIZONTAL);
 		self.SetSizer(sizer_base);
 		self.panel_base = wx.Panel(self);
-		self.panel_base.SetBackgroundColour(wx.BLACK);
+		self.panel_base.SetBackgroundColour(wx.Colour(50,50,50));
 		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND,5);
 		sizer_main = wx.BoxSizer(wx.VERTICAL);
 		self.panel_base.SetSizer(sizer_main);
 
+		#create a panel to hold toolbars
+		panel_tool = wx.Panel(self.panel_base);
+		panel_tool.SetBackgroundColour(wx.Colour(240,240,240));
+		sizer_main.Add(panel_tool, 0, wx.ALL | wx.EXPAND,5);
+		sizer_tool = wx.BoxSizer(wx.HORIZONTAL);
+		panel_tool.SetSizer(sizer_tool);
+
 		#create a toolbar
-		tool_mouse = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		tool_mouse = wx.ToolBar(panel_tool, style = wx.TB_FLAT | wx.TB_NODIVIDER);
 		tool_mouse.SetToolBitmapSize((24, 24));
+
 		self.id_tool_normal = wx.NewId();
 		self.icon_normal = wx.Bitmap("../icon/default.png");
 		tool_mouse.AddTool(
 			self.id_tool_normal, "normal", self.icon_normal, shortHelp = "normal"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
+
 		self.id_tool_grab = wx.NewId();
 		self.icon_grab = wx.Bitmap("../icon/grab.png");
 		self.icon_grabbing = wx.Bitmap("../icon/grabbing.png");
@@ -223,26 +246,73 @@ class dipl_frame(wx.Frame):
 			self.id_tool_grab, "grab", self.icon_grab, shortHelp = "grab"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
+
 		self.id_tool_pencil = wx.NewId();
 		self.icon_pencil = wx.Bitmap("../icon/pencil.png");
 		tool_mouse.AddTool(
 			self.id_tool_pencil, "pencil", self.icon_pencil, shortHelp = "pencil"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
+
 		self.id_zoom_in = wx.NewId();
 		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
 		tool_mouse.AddTool(
 			self.id_zoom_in, "zoom_in", self.icon_zoom_in, shortHelp = "zoom in"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
+
 		self.id_zoom_out = wx.NewId();
 		self.icon_zoom_out = wx.Bitmap("../icon/zoom-out.png");
 		tool_mouse.AddTool(
 			self.id_zoom_out, "zoom_out", self.icon_zoom_out, shortHelp = "zoom out"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
+
+		self.id_zoom_fit = wx.NewId();
+		tool_mouse.AddTool(
+			self.id_zoom_fit, "zoom_fit", wx.Bitmap("../icon/square_box.png"), shortHelp = "zoom fit"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_zoom_fit, id = self.id_zoom_fit);
+
+		tool_mouse.AddSeparator();
 		tool_mouse.Realize();
-		sizer_main.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 5);
+		sizer_tool.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 5);
+
+		#create a toolbar
+		tool_transform = wx.ToolBar(panel_tool, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		self.choice_transform = wx.Choice(
+			tool_transform, wx.NewId(), choices = [
+				"Resize Image (Nearest Point)",
+				"Resize Image (Bilinear)",
+				"Histogram Equalization",
+				"Power Law",
+				"Blur Image",
+				"Sharpen Image",
+				"Laplacian"
+			],
+			size=(180,-1)
+		);
+		self.choice_transform.SetSelection(0);
+		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
+		tool_transform.AddControl(self.choice_transform);
+
+		self.text_input_info1 = wx.StaticText(tool_transform, label = " height:");
+		tool_transform.AddControl(self.text_input_info1);
+		self.text_input1 = wx.TextCtrl(tool_transform, value = "300");
+		tool_transform.AddControl(self.text_input1);
+		self.text_input_info2 = wx.StaticText(tool_transform, label = " width:");
+		tool_transform.AddControl(self.text_input_info2);
+		self.text_input2 = wx.TextCtrl(tool_transform, value = "400");
+		tool_transform.AddControl(self.text_input2);
+
+		self.id_tool_run = wx.NewId();
+		tool_transform.AddTool(
+			self.id_tool_run, "transform", wx.Bitmap("../icon/right_arrow.png"), shortHelp = "transform"
+		);
+
+		tool_transform.AddSeparator();
+		tool_transform.Realize();
+		sizer_tool.Add(tool_transform, 0, wx.ALL | wx.EXPAND, 5);
 
 		#create a panel to draw pictures
 		self.panel_draw = wx.Panel(self.panel_base);
@@ -392,6 +462,14 @@ class dipl_frame(wx.Frame):
 		self.status = self.s_zoom_out;
 		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_out.ConvertToImage()));
 
+	def on_zoom_fit(self, event):
+		if self.img is None:
+			return;
+		self.img.zoom_fit(np.array(self.panel_draw.GetSize())[::-1]);
+		dc = wx.ClientDC(self.panel_draw);
+		dc.Clear();
+		self.img.display(dc);
+
 	def on_panel_draw_leftdown(self, event):
 		self.panel_draw.flag_down = True;
 		if self.img is None:
@@ -409,7 +487,7 @@ class dipl_frame(wx.Frame):
 				dc.SetPen(wx.Pen(wx.BLACK, 10));
 				dc.DrawLine(event.GetPosition(), self.panel_draw.pos);
 			elif self.status == self.s_grab:
-				self.img.move(np.array(event.GetPosition()) - np.array(self.panel_draw.pos));
+				self.img.move((np.array(event.GetPosition()) - np.array(self.panel_draw.pos))[::-1]);
 				self.img.display(wx.ClientDC(self.panel_draw));
 		self.panel_draw.pos = event.GetPosition();
 
@@ -423,21 +501,96 @@ class dipl_frame(wx.Frame):
 			dc.Clear();
 			self.img.display(dc);
 		elif self.status == self.s_zoom_in:
-			self.img.rescale(np.array(event.GetPosition()), 1.2);
+			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
 			self.img.display(dc);
 		elif self.status == self.s_zoom_out:
-			self.img.rescale(np.array(event.GetPosition()), 0.8);
+			self.img.rescale(np.array(event.GetPosition())[::-1], 0.8);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
 			self.img.display(dc);
+
+	def on_choice_transform(self, event):
+		sel = self.choice_transform.GetCurrentSelection();
+		num = 0;
+
+		if sel == num or sel == num + 1:
+			self.text_input_info1.Show();
+			self.text_input_info2.Show();
+			self.text_input_info1.SetLabel(" height:");
+			self.text_input_info2.SetLabel(" width:");
+			self.text_input1.Show();
+			self.text_input2.Show();
+			if not (self.img is None):
+				self.text_input1.SetValue(str(self.img.data.shape[0]));
+				self.text_input2.SetValue(str(self.img.data.shape[1]));
+			else:
+				self.text_input1.SetValue(str(300));
+				self.text_input2.SetValue(str(400));
+			return;
+		else:
+			num += 2;
+
+		if sel == num:
+			self.text_input_info1.Hide();
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			return;
+		else:
+			num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info1.SetLabel(" gamma:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input1.SetValue(str(0.65));
+			return;
+		else:
+			num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info1.SetLabel(" kernel size:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input1.SetValue(str(3));
+			return;
+		else:
+			num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info1.SetLabel(" alpha:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input1.SetValue(str(-0.65));
+			return;
+		else:
+			num += 1;
+
+		if sel == num:
+			self.text_input_info1.Hide();
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			return;
+		else:
+			num += 1;
+
+	def on_transform():
+		pass;
 
 class dipl_app(wx.App):
 
 	#overload the initializer
 	def OnInit(self):
-		self.frame = dipl_frame(None, title = "Digital Image Processing", size = (800, 600));
+		self.frame = dipl_frame(None, title = "Digital Image Processing", size = (900, 650));
 		return True;
 
 if __name__ == "__main__":
