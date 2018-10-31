@@ -453,6 +453,9 @@ void equalize(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int low, 
 			(*ptrm)[i * i2 + j] = table_map[ptri[i * i2 + j] - bound_l];
 		}
 	}
+
+	delete table_count;
+	delete table_map;
 }
 
 void differentiate(const int& size, int* data_in, int* data_out, const int& step = 1){
@@ -499,6 +502,9 @@ void laplacian(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2){
 			(*ptrm)[i * i2 + j] = buffer_v[i * i2 + j] + buffer_h[i * i2 + j];
 		}
 	}
+
+	delete buffer_v;
+	delete buffer_h;
 }
 
 void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j1){
