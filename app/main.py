@@ -32,7 +32,7 @@ class dimage:
 		self.data = img2numpy(wx.Bitmap(filename));
 
 	def save(self, filename):
-		pass;
+		numpy2img(self.data).ConvertToImage().SaveFile(filename);
 
 	def display(self, dc):
 		shape = np.array(self.data.shape);
@@ -150,7 +150,7 @@ class dipl_frame(wx.Frame):
 			menu_file, id = wx.NewId(),
 			text = "&Save File\tCtrl-S"
 		);
-		#self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
+		self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
 		menu_file.Append(menu_save);
 
 		#add items to menu_help
@@ -299,12 +299,21 @@ class dipl_frame(wx.Frame):
 			self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_open(self, event):
-		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png)|*.bmp;*.jpg;*.jpeg;*.png", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
+		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.path = dialog.GetPath();
 			self.img = dimage();
 			self.img.load(self.path);
 			self.img.display(wx.ClientDC(self.panel_draw));
+		dialog.Destroy();
+
+	def on_save(self, event):
+		if self.img is None:
+			return;
+		dialog = wx.FileDialog(self, message = "Save File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
+		if dialog.ShowModal() == wx.ID_OK:
+			self.path = dialog.GetPath();
+			self.img.save(self.path);
 		dialog.Destroy();
 
 	def on_resize(self, event):
