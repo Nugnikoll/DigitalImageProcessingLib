@@ -35,7 +35,12 @@ class dimage:
 		pass;
 
 	def display(self, dc):
-		dc.DrawBitmap(numpy2img(self.data), self.pos[0], self.pos[1]);
+		shape = np.array(self.data.shape);
+		shape[:2] = (shape[:2] * self.scale).astype(shape.dtype);
+		data = np.empty(shape, dtype = np.int32);
+		for i in range(shape[2]):
+			data[:,:,i] = jpeg.resize_near(self.data[:, :, i].copy(), int(shape[0]), int(shape[1]));
+		dc.DrawBitmap(numpy2img(data), self.pos[0], self.pos[1]);
 
 	def move(self, distance):
 		self.pos += distance;
@@ -243,13 +248,25 @@ class dipl_frame(wx.Frame):
 		self.panel_draw = wx.Panel(self.panel_base);
 		self.panel_draw.SetBackgroundColour(wx.BLACK);
 		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
+		self.panel_draw.flag_down = False;
+		self.panel_draw.pos = (0, 0);
 		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
+		self.panel_draw.Bind(wx.EVT_LEFT_DOWN, self.on_panel_draw_leftdown);
+		self.panel_draw.Bind(wx.EVT_LEFT_UP, self.on_panel_draw_leftup);
+		self.panel_draw.Bind(wx.EVT_MOTION, self.on_panel_draw_motion);
 
 		#show the frame
 		self.Show(True);
 
 		self.path = None;
 		self.img = None;
+
+		self.s_normal = 0;
+		self.s_grab = 1;
+		self.s_pencil = 2;
+		self.s_zoom_in = 3;
+		self.s_zoom_out = 4;
+		self.status = self.s_normal;
 
 	def on_quit(self, event):
 		self.Close();
@@ -265,12 +282,10 @@ class dipl_frame(wx.Frame):
 		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png)|*.bmp;*.jpg;*.jpeg;*.png", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.path = dialog.GetPath();
-#			self.img = wx.Bitmap(self.path);
-#			dc = wx.ClientDC(self.panel_draw);
-#			self.do_paint(dc);
 			self.img = dimage();
 			self.img.load(self.path);
 			self.img.display(wx.ClientDC(self.panel_draw));
+		dialog.Destroy();
 
 	def on_resize(self, event):
 		if self.img is None:
@@ -358,19 +373,65 @@ class dipl_frame(wx.Frame):
 		self.img.display(wx.ClientDC(self.panel_draw));
 
 	def on_normal(self, event):
+		self.status = self.s_normal;
 		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
 
 	def on_grab(self, event):
+		self.status = self.s_grab;
 		self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
 
 	def on_pencil(self, event):
+		self.status = self.s_pencil;
 		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
 
 	def on_zoom_in(self, event):
+		self.status = self.s_zoom_in;
 		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_in.ConvertToImage()));
 
 	def on_zoom_out(self, event):
+		self.status = self.s_zoom_out;
 		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_out.ConvertToImage()));
+
+	def on_panel_draw_leftdown(self, event):
+		self.panel_draw.flag_down = True;
+		if self.img is None:
+			return;
+		if self.status == self.s_grab:
+			self.panel_draw.SetCursor(wx.Cursor(self.icon_grabbing.ConvertToImage()));
+
+	def on_panel_draw_motion(self, event):
+		if self.img is None:
+			return;
+		if self.panel_draw.flag_down:
+			if self.status == self.s_pencil:
+				dc = wx.ClientDC(self.panel_draw);
+				dc.SetBrush(wx.BLACK_BRUSH);
+				dc.SetPen(wx.Pen(wx.BLACK, 10));
+				dc.DrawLine(event.GetPosition(), self.panel_draw.pos);
+			elif self.status == self.s_grab:
+				self.img.move(np.array(event.GetPosition()) - np.array(self.panel_draw.pos));
+				self.img.display(wx.ClientDC(self.panel_draw));
+		self.panel_draw.pos = event.GetPosition();
+
+	def on_panel_draw_leftup(self, event):
+		self.panel_draw.flag_down = False;
+		if self.img is None:
+			return;
+		if self.status == self.s_grab:
+			self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
+			dc = wx.ClientDC(self.panel_draw);
+			dc.Clear();
+			self.img.display(dc);
+		elif self.status == self.s_zoom_in:
+			self.img.rescale(np.array(event.GetPosition()), 1.2);
+			dc = wx.ClientDC(self.panel_draw);
+			dc.Clear();
+			self.img.display(dc);
+		elif self.status == self.s_zoom_out:
+			self.img.rescale(np.array(event.GetPosition()), 0.8);
+			dc = wx.ClientDC(self.panel_draw);
+			dc.Clear();
+			self.img.display(dc);
 
 class dipl_app(wx.App):
 
