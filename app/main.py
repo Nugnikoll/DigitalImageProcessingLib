@@ -82,10 +82,10 @@ class dimage:
 		w = self.data.shape[1];
 		(sh, sw) = size;
 		if h * sw > w * sh:
-			self.scale = np.array((sh / h));
+			self.scale = np.array([sh / h, sh / h]);
 			self.pos = np.array((0, (sw - sh * w / h) / 2), dtype = np.int32);
 		else:
-			self.scale = np.array((sw / w));
+			self.scale = np.array([sw / w, sw / w]);
 			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
 
 	def resize_near(self, size):
