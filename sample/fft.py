@@ -1,5 +1,8 @@
 import numpy as np;
-from jpeg import jpeg;
+import sys;
+
+sys.path.append("../python");
+import jpeg;
 
 jpeg.fft_preprocess(8);
 a = np.array([1,2,3,4,-1,4,3,2], dtype = np.complex128);

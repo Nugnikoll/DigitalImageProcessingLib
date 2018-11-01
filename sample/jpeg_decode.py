@@ -1,7 +1,10 @@
 from matplotlib import pyplot as plt;
 from matplotlib import cm;
 import numpy as np;
-from jpeg import jpeg;
+import sys;
+
+sys.path.append("../python");
+import jpeg;
 
 jdecoder = jpeg.jpeg_decoder();
 

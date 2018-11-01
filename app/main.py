@@ -7,7 +7,9 @@ import time;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
-from jpeg import jpeg;
+
+sys.path.append("../python");
+import jpeg;
 
 def img2numpy(wximg):
 	img = wximg.ConvertToImage();

@@ -2,7 +2,10 @@ import numpy as np;
 from matplotlib import pyplot as plt;
 from matplotlib import cm;
 from PIL import Image as image;
-from jpeg import jpeg;
+import sys;
+
+sys.path.append("../python");
+import jpeg;
 
 #img = image.open("../img/artery.jpg");
 img = image.open("../img/scene.jpg");
