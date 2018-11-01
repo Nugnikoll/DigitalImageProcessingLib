@@ -2,7 +2,10 @@ from matplotlib import pyplot as plt;
 from matplotlib import cm;
 from PIL import Image as image;
 import numpy as np;
-from jpeg import jpeg;
+import sys;
+
+sys.path.append("../python");
+import jpeg;
 
 #img = image.open("../img/738b4710b912c8fcc7977bd3f1039245d6882143.jpg");
 img = image.open("../img/apple.png");

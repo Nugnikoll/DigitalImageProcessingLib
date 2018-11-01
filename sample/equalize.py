@@ -2,7 +2,10 @@ from matplotlib import pyplot as plt;
 from matplotlib import cm;
 from PIL import Image as image;
 import numpy as np;
-from jpeg import jpeg;
+import sys;
+
+sys.path.append("../python");
+import jpeg;
 
 #img = image.open("../img/dark.jpg");
 img = image.open("../img/scene.jpg");
