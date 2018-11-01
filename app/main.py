@@ -25,10 +25,11 @@ def numpy2img(data):
 	return wximg;
 
 class dimage:
-	def __init__(self, data = None):
+	def __init__(self, data = None, panel = None):
 		self.data = data;
 		self.pos = np.array([0, 0], dtype = np.int32);
 		self.scale = np.array([1, 1], dtype = np.float64);
+		self.panel = panel;
 
 	def load(self, filename):
 		self.data = img2numpy(wx.Bitmap(filename));
@@ -36,13 +37,35 @@ class dimage:
 	def save(self, filename):
 		numpy2img(self.data).ConvertToImage().SaveFile(filename);
 
-	def display(self, dc):
+	def display(self):
+		dc = wx.ClientDC(self.panel);
+		size = np.array(self.panel.GetSize())[::-1];
+
 		shape = np.array(self.data.shape);
-		shape[:2] = (shape[:2] * self.scale).astype(shape.dtype);
-		data = np.empty(shape, dtype = np.int32);
+		pos1 = np.maximum(np.floor(-self.pos / self.scale).astype(np.int32), np.array([0, 0]));
+		pos2 = np.minimum(np.ceil((size - self.pos) / self.scale).astype(np.int32), shape[:2]);
+		#print("pos1", pos1, "pos2", pos2);
+		if (pos2 - pos1 <= 0).any():
+			return;
+
+#		pos3 = np.minimum(np.array([0, 0]), self.pos.astype(np.int32));
+#		pos4 = np.minimum(size, np.ceil(shape[:2] * self.scale + self.pos));
+
+#		pos3 = np.minimum(np.array([0, 0]), self.pos.astype(np.int32));
+#		pos4 = np.ceil((pos2 - pos1) * self.scale) + pos3;
+
+		pos3 = np.floor(pos1 * self.scale + self.pos).astype(np.int32);
+		pos4 = np.ceil(pos2 * self.scale + self.pos).astype(np.int32);
+
+		#print("pos3", pos3, "pos4", pos4);
+		shape2 = shape;
+		shape2[:2] = pos4 - pos3;
+
+		data = np.empty(shape2, dtype = np.int32);
 		for i in range(shape[2]):
-			data[:,:,i] = jpeg.resize_near(self.data[:, :, i].copy(), int(shape[0]), int(shape[1]));
-		dc.DrawBitmap(numpy2img(data), self.pos[1], self.pos[0]);
+			data[:, :, i] = jpeg.resize_near(self.data[pos1[0]: pos2[0], pos1[1]: pos2[1], i].copy(), int(shape2[0]), int(shape2[1]));
+		dc.DrawBitmap(numpy2img(data), pos3[1], pos3[0]);
+		
 
 	def move(self, distance):
 		self.pos += distance;
@@ -298,15 +321,15 @@ class dipl_frame(wx.Frame):
 
 	def on_panel_draw_paint(self, event):
 		if not (self.img is None):
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 
 	def on_open(self, event):
 		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.path = dialog.GetPath();
-			self.img = dimage();
+			self.img = dimage(panel = self.panel_draw);
 			self.img.load(self.path);
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 		dialog.Destroy();
 
 	def on_save(self, event):
@@ -343,14 +366,14 @@ class dipl_frame(wx.Frame):
 			self.img.resize_linear(np.array((height, width)));
 		else:
 			return;
-		self.img.display(wx.ClientDC(self.panel_draw));
+		self.img.display();
 
 	def on_equalize(self, event):
 		if self.img is None:
 			return;
 
 		self.img.equalize();
-		self.img.display(wx.ClientDC(self.panel_draw));
+		self.img.display();
 
 	def on_power(self, event):
 		if self.img is None:
@@ -363,7 +386,7 @@ class dipl_frame(wx.Frame):
 			return;
 
 		self.img.power_law(gamma);
-		self.img.display(wx.ClientDC(self.panel_draw));
+		self.img.display();
 
 	def on_blur(self, event):
 		if self.img is None:
@@ -381,7 +404,7 @@ class dipl_frame(wx.Frame):
 		kernel /= np.sum(kernel);
 
 		self.img.convolute(kernel);
-		self.img.display(wx.ClientDC(self.panel_draw));
+		self.img.display();
 
 	def on_sharpen(self, event):
 		if self.img is None:
@@ -394,14 +417,14 @@ class dipl_frame(wx.Frame):
 			return;
 
 		self.img.sharpen(alpha);
-		self.img.display(wx.ClientDC(self.panel_draw));
+		self.img.display();
 
 	def on_laplacian(self, event):
 		if self.img is None:
 			return;
 
 		self.img.laplacian();
-		self.img.display(wx.ClientDC(self.panel_draw));
+		self.img.display();
 
 	def on_normal(self, event):
 		self.status = self.s_normal;
@@ -429,7 +452,7 @@ class dipl_frame(wx.Frame):
 		self.img.zoom_fit(np.array(self.panel_draw.GetSize())[::-1]);
 		dc = wx.ClientDC(self.panel_draw);
 		dc.Clear();
-		self.img.display(dc);
+		self.img.display();
 
 	def on_panel_draw_leftdown(self, event):
 		self.panel_draw.flag_down = True;
@@ -449,7 +472,7 @@ class dipl_frame(wx.Frame):
 				dc.DrawLine(event.GetPosition(), self.panel_draw.pos);
 			elif self.status == self.s_grab:
 				self.img.move((np.array(event.GetPosition()) - np.array(self.panel_draw.pos))[::-1]);
-				self.img.display(wx.ClientDC(self.panel_draw));
+				self.img.display();
 		self.panel_draw.pos = event.GetPosition();
 
 	def on_panel_draw_leftup(self, event):
@@ -460,17 +483,17 @@ class dipl_frame(wx.Frame):
 			self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display(dc);
+			self.img.display();
 		elif self.status == self.s_zoom_in:
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display(dc);
+			self.img.display();
 		elif self.status == self.s_zoom_out:
 			self.img.rescale(np.array(event.GetPosition())[::-1], 0.8);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display(dc);
+			self.img.display();
 
 	def on_choice_transform(self, event):
 		sel = self.choice_transform.GetCurrentSelection();
@@ -553,7 +576,7 @@ class dipl_frame(wx.Frame):
 			self.img.resize_near(np.array((height, width)));
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display(dc);
+			self.img.display();
 			return;
 		num += 1;
 
@@ -565,13 +588,13 @@ class dipl_frame(wx.Frame):
 			self.img.resize_linear(np.array((height, width)));
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display(dc);
+			self.img.display();
 			return;
 		num += 1;
 
 		if sel == num:
 			self.img.equalize();
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 			return;
 		num += 1;
 
@@ -580,7 +603,7 @@ class dipl_frame(wx.Frame):
 			if gamma <= 0:
 				return;
 			self.img.power_law(gamma);
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 			return;
 		num += 1;
 
@@ -595,20 +618,20 @@ class dipl_frame(wx.Frame):
 			], dtype = np.float64);
 			kernel /= np.sum(kernel);
 			self.img.correlate(kernel);
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 			return;
 		num += 1;
 
 		if sel == num:
 			alpha = float(self.text_input1.GetValue());
 			self.img.sharpen(alpha);
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 			return;
 		num += 1;
 
 		if sel == num:
 			self.img.laplacian();
-			self.img.display(wx.ClientDC(self.panel_draw));
+			self.img.display();
 			return;
 		num += 1;
 
