@@ -44,6 +44,7 @@ class dimage:
 		shape = np.array(self.data.shape);
 		pos1 = np.maximum(np.floor(-self.pos / self.scale).astype(np.int32), np.array([0, 0]));
 		pos2 = np.minimum(np.ceil((size - self.pos) / self.scale).astype(np.int32), shape[:2]);
+		#print(self.scale);
 		#print("pos1", pos1, "pos2", pos2);
 		if (pos2 - pos1 <= 0).any():
 			return;
@@ -485,12 +486,16 @@ class dipl_frame(wx.Frame):
 			dc.Clear();
 			self.img.display();
 		elif self.status == self.s_zoom_in:
+			if self.img.scale[0] > 450:
+				return;
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
 			self.img.display();
 		elif self.status == self.s_zoom_out:
-			self.img.rescale(np.array(event.GetPosition())[::-1], 0.8);
+			if self.img.scale[0] < 1e-5:
+				return;
+			self.img.rescale(np.array(event.GetPosition())[::-1], 1/1.2);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
 			self.img.display();
