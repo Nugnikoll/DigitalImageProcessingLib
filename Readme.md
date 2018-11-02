@@ -14,7 +14,7 @@
 	- [CMake](https://cmake.org/) 用于实现跨平台编译  
 	编译前请确定c++编译器、python3、swig和cmake所在路径已经添加到环境变量PATH中
 
-- 编译C++代码，生成可供Python调用的动态链接库（_reversi.so或_reversi.pyd）  
+- 编译C++代码，生成可供Python调用的动态链接库（_jpeg.so或_jpeg.pyd）  
 	`cd build`  
 	`cmake -DCMAKE_BUILD_TYPE=RELEASE
 .` （请注意命令最后有英文句号。如果在UNIX或Linux平台上直接输入这个命令即可。如果是在windows平台上使用MinGW GCC编译，则应输入 `cmake -G"MinGW Makefiles"  -DCMAKE_BUILD_TYPE=RELEASE .`如果用VisualStudio请参照CMake文档或输入`cmake --help`查看帮助。）  

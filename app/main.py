@@ -82,10 +82,10 @@ class dimage:
 		w = self.data.shape[1];
 		(sh, sw) = size;
 		if h * sw > w * sh:
-			self.scale = np.array((sh / h));
+			self.scale = np.array([sh / h, sh / h]);
 			self.pos = np.array((0, (sw - sh * w / h) / 2), dtype = np.int32);
 		else:
-			self.scale = np.array((sw / w));
+			self.scale = np.array([sw / w, sw / w]);
 			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
 
 	def resize_near(self, size):
@@ -192,20 +192,19 @@ class dipl_frame(wx.Frame):
 		self.SetSizer(sizer_base);
 		self.panel_base = wx.Panel(self);
 		self.panel_base.SetBackgroundColour(wx.Colour(50,50,50));
-		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND,5);
+		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND, 0);
 		sizer_main = wx.BoxSizer(wx.VERTICAL);
 		self.panel_base.SetSizer(sizer_main);
 
 		#create a panel to hold toolbars
 		panel_tool = wx.Panel(self.panel_base);
 		panel_tool.SetBackgroundColour(wx.Colour(240,240,240));
-		sizer_main.Add(panel_tool, 0, wx.ALL | wx.EXPAND,5);
+		sizer_main.Add(panel_tool, 0, wx.ALL | wx.EXPAND, 5);
 		sizer_tool = wx.BoxSizer(wx.HORIZONTAL);
 		panel_tool.SetSizer(sizer_tool);
 
 		#create a toolbar
 		tool_mouse = wx.ToolBar(panel_tool, style = wx.TB_FLAT | wx.TB_NODIVIDER);
-		tool_mouse.SetToolBitmapSize((24, 24));
 
 		self.id_tool_normal = wx.NewId();
 		self.icon_normal = wx.Bitmap("../icon/default.png");
@@ -251,10 +250,11 @@ class dipl_frame(wx.Frame):
 
 		tool_mouse.AddSeparator();
 		tool_mouse.Realize();
-		sizer_tool.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 5);
+		sizer_tool.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 1);
 
 		#create a toolbar
 		tool_transform = wx.ToolBar(panel_tool, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+
 		self.choice_transform = wx.Choice(
 			tool_transform, wx.NewId(), choices = [
 				"Resize Image (Nearest Point)",
@@ -288,7 +288,7 @@ class dipl_frame(wx.Frame):
 
 		tool_transform.AddSeparator();
 		tool_transform.Realize();
-		sizer_tool.Add(tool_transform, 0, wx.ALL | wx.EXPAND, 5);
+		sizer_tool.Add(tool_transform, 0, wx.ALL | wx.EXPAND, 1);
 
 		#create a panel to draw pictures
 		self.panel_draw = wx.Panel(self.panel_base);
@@ -300,6 +300,12 @@ class dipl_frame(wx.Frame):
 		self.panel_draw.Bind(wx.EVT_LEFT_DOWN, self.on_panel_draw_leftdown);
 		self.panel_draw.Bind(wx.EVT_LEFT_UP, self.on_panel_draw_leftup);
 		self.panel_draw.Bind(wx.EVT_MOTION, self.on_panel_draw_motion);
+
+		#add a status bar
+		self.status_bar = wx.StatusBar(self, wx.NewId());
+		self.status_bar.SetFieldsCount(3);
+		self.status_bar.SetStatusWidths([-1, -1, -1]);
+		self.SetStatusBar(self.status_bar);
 
 		#show the frame
 		self.Show(True);
@@ -331,6 +337,7 @@ class dipl_frame(wx.Frame):
 			self.img = dimage(panel = self.panel_draw);
 			self.img.load(self.path);
 			self.img.display();
+			self.SetStatusText(str(self.img.scale[0]), 1);
 		dialog.Destroy();
 
 	def on_save(self, event):
@@ -451,6 +458,7 @@ class dipl_frame(wx.Frame):
 		if self.img is None:
 			return;
 		self.img.zoom_fit(np.array(self.panel_draw.GetSize())[::-1]);
+		self.SetStatusText(str(self.img.scale[0]), 1);
 		dc = wx.ClientDC(self.panel_draw);
 		dc.Clear();
 		self.img.display();
@@ -465,6 +473,11 @@ class dipl_frame(wx.Frame):
 	def on_panel_draw_motion(self, event):
 		if self.img is None:
 			return;
+
+		pos1 = np.array(event.GetPosition())[::-1];
+		pos2 = (pos1 - self.img.pos) / self.img.scale;
+		self.SetStatusText("(%d,%d)->(%d,%d)" % (pos2[1], pos2[0], pos1[1], pos1[0]), 2);
+
 		if self.panel_draw.flag_down:
 			if self.status == self.s_pencil:
 				dc = wx.ClientDC(self.panel_draw);
@@ -478,8 +491,10 @@ class dipl_frame(wx.Frame):
 
 	def on_panel_draw_leftup(self, event):
 		self.panel_draw.flag_down = False;
+
 		if self.img is None:
 			return;
+
 		if self.status == self.s_grab:
 			self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
 			dc = wx.ClientDC(self.panel_draw);
@@ -489,6 +504,7 @@ class dipl_frame(wx.Frame):
 			if self.img.scale[0] > 450:
 				return;
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
+			self.SetStatusText(str(self.img.scale[0]), 1);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
 			self.img.display();
@@ -496,6 +512,7 @@ class dipl_frame(wx.Frame):
 			if self.img.scale[0] < 1e-5:
 				return;
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1/1.2);
+			self.SetStatusText(str(self.img.scale[0]), 1);
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
 			self.img.display();
