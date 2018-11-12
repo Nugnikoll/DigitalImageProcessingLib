@@ -281,6 +281,7 @@ class dipl_frame(wx.Frame):
 
 		self.choice_transform = wx.Choice(
 			tool_transform, wx.NewId(), choices = [
+				"Set Color",
 				"Resize Image (Nearest Point)",
 				"Resize Image (Bilinear)",
 				"Histogram Equalization",
@@ -295,14 +296,18 @@ class dipl_frame(wx.Frame):
 		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
 		tool_transform.AddControl(self.choice_transform);
 
-		self.text_input_info1 = wx.StaticText(tool_transform, label = " height:");
+		self.text_input_info1 = wx.StaticText(tool_transform, label = " red:");
 		tool_transform.AddControl(self.text_input_info1);
-		self.text_input1 = wx.TextCtrl(tool_transform, value = "300");
+		self.text_input1 = wx.TextCtrl(tool_transform, value = "0");
 		tool_transform.AddControl(self.text_input1);
-		self.text_input_info2 = wx.StaticText(tool_transform, label = " width:");
+		self.text_input_info2 = wx.StaticText(tool_transform, label = " green:");
 		tool_transform.AddControl(self.text_input_info2);
-		self.text_input2 = wx.TextCtrl(tool_transform, value = "400");
+		self.text_input2 = wx.TextCtrl(tool_transform, value = "0");
 		tool_transform.AddControl(self.text_input2);
+		self.text_input_info3 = wx.StaticText(tool_transform, label = " blue:");
+		tool_transform.AddControl(self.text_input_info3);
+		self.text_input3 = wx.TextCtrl(tool_transform, value = "0");
+		tool_transform.AddControl(self.text_input3);
 
 		self.id_tool_run = wx.NewId();
 		tool_transform.AddTool(
@@ -320,6 +325,7 @@ class dipl_frame(wx.Frame):
 		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
 		self.panel_draw.flag_down = False;
 		self.panel_draw.thick = 5;
+		self.panel_draw.color = wx.Colour(0, 0, 0);
 		self.panel_draw.pos = (0, 0);
 		self.panel_draw.pos_img = (0, 0);
 		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
@@ -421,9 +427,10 @@ class dipl_frame(wx.Frame):
 			pos2 = (pos1 - self.img.pos) / self.img.scale;
 			pos2 = pos2.astype(np.int32);
 			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
-				self.color_pick = self.img.data[pos2[0], pos2[1], :];
-				self.button_color.SetBackgroundColour(wx.Colour(self.color_pick));
-				self.SetStatusText(str(self.color_pick), 0);
+				color = self.img.data[pos2[0], pos2[1], :];
+				self.panel_draw.color = wx.Colour(color);
+				self.button_color.SetBackgroundColour(self.panel_draw.color);
+				self.SetStatusText(str(color), 0);
 
 	def on_panel_draw_motion(self, event):
 		if self.img is None:
@@ -438,8 +445,7 @@ class dipl_frame(wx.Frame):
 				img = numpy2bitmap(self.img.data);
 				dc = wx.MemoryDC();
 				dc.SelectObject(img);
-				dc.SetBrush(wx.BLACK_BRUSH);
-				dc.SetPen(wx.Pen(wx.BLACK, self.panel_draw.thick));
+				dc.SetPen(wx.Pen(self.panel_draw.color, self.panel_draw.thick));
 				dc.DrawLine(self.panel_draw.pos_img[::-1], pos_img[::-1]);
 				self.img.data = bitmap2numpy(img);
 				self.img.display();
@@ -481,6 +487,22 @@ class dipl_frame(wx.Frame):
 		sel = self.choice_transform.GetCurrentSelection();
 		num = 0;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" red:");
+			self.text_input1.Show();
+			self.text_input1.SetValue(str(self.panel_draw.color.red));
+			self.text_input_info2.Show();
+			self.text_input_info2.SetLabel(" green:");
+			self.text_input2.Show();
+			self.text_input2.SetValue(str(self.panel_draw.color.green));
+			self.text_input_info3.Show();
+			self.text_input_info3.SetLabel(" blue:");
+			self.text_input3.Show();
+			self.text_input3.SetValue(str(self.panel_draw.color.blue));
+			return;
+		num += 1;
+
 		if sel == num or sel == num + 1:
 			self.text_input_info1.Show();
 			self.text_input_info2.Show();
@@ -494,6 +516,8 @@ class dipl_frame(wx.Frame):
 			else:
 				self.text_input1.SetValue(str(300));
 				self.text_input2.SetValue(str(400));
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
 			return;
 		num += 2;
 
@@ -502,6 +526,8 @@ class dipl_frame(wx.Frame):
 			self.text_input_info2.Hide();
 			self.text_input1.Hide();
 			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
 			return;
 		num += 1;
 
@@ -512,6 +538,8 @@ class dipl_frame(wx.Frame):
 			self.text_input1.Show();
 			self.text_input2.Hide();
 			self.text_input1.SetValue(str(0.65));
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
 			return;
 		num += 1;
 
@@ -522,6 +550,8 @@ class dipl_frame(wx.Frame):
 			self.text_input1.Show();
 			self.text_input2.Hide();
 			self.text_input1.SetValue(str(3));
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
 			return;
 		num += 1;
 
@@ -532,6 +562,8 @@ class dipl_frame(wx.Frame):
 			self.text_input1.Show();
 			self.text_input2.Hide();
 			self.text_input1.SetValue(str(-0.65));
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
 			return;
 		num += 1;
 
@@ -540,6 +572,8 @@ class dipl_frame(wx.Frame):
 			self.text_input_info2.Hide();
 			self.text_input1.Hide();
 			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
 			return;
 		num += 1;
 
@@ -549,6 +583,17 @@ class dipl_frame(wx.Frame):
 
 		sel = self.choice_transform.GetCurrentSelection();
 		num = 0;
+
+		if sel == num:
+			red = int(self.text_input1.GetValue());
+			green = int(self.text_input2.GetValue());
+			blue = int(self.text_input3.GetValue()); 
+			if red < 0 or red > 255 or green < 0 or green > 255 or blue < 0 or blue > 255:
+				return;
+			self.panel_draw.color = wx.Colour(red, green, blue);
+			self.button_color.SetBackgroundColour(self.panel_draw.color);
+			return;
+		num += 1;
 
 		if sel == num:
 			height = int(self.text_input1.GetValue());
