@@ -7,6 +7,7 @@ import time;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
+from wx.lib import sized_controls
 
 sys.path.append("../python");
 import jpeg;
@@ -42,6 +43,10 @@ class dimage:
 		self.pos = np.array([0, 0], dtype = np.int32);
 		self.scale = np.array([1, 1], dtype = np.float64);
 		self.panel = panel;
+
+	def create(self, size):
+		self.data = np.empty(size, dtype = np.int32);
+		self.data[:] = 255;
 
 	def load(self, filename):
 		self.data = img2numpy(wx.Image(filename));
@@ -155,6 +160,35 @@ class dimage:
 		result = result.astype(np.int32);
 		self.data = result;
 
+class dialog_new(wx.Dialog):
+
+	def __init__(self, parent, title = "", size = (250, 150)):
+		super(dialog_new, self).__init__(parent = parent, title = title, size = size);
+		panel_base = wx.Panel(self);
+		sizer_base = wx.BoxSizer(wx.VERTICAL);
+		panel_base.SetSizer(sizer_base);
+
+		sizer_input = wx.GridSizer(2, 2, 5);
+		sizer_base.Add(sizer_input, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		label_width = wx.StaticText(panel_base, label = "width:");
+		sizer_input.Add(label_width, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.text_width = wx.TextCtrl(panel_base, value = "");
+		sizer_input.Add(self.text_width, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		label_height = wx.StaticText(panel_base, label = "height:");
+		sizer_input.Add(label_height, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.text_height = wx.TextCtrl(panel_base, value = "");
+		sizer_input.Add(self.text_height, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		sizer_button = wx.BoxSizer(wx.HORIZONTAL);
+		sizer_base.Add(sizer_button, 0, wx.ALL | wx.ALIGN_RIGHT, 5);
+		button_cancel = wx.Button(panel_base, wx.ID_CANCEL, label = "Cancel");
+		sizer_button.Add(button_cancel, 0, wx.ALL | wx.EXPAND, 5);
+		button_ok = wx.Button(panel_base, wx.ID_OK , label = "OK");
+		sizer_button.Add(button_ok, 0, wx.ALL | wx.EXPAND, 5);
+
+		#self.Fit();
+
+
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
 		wx.Frame.__init__(self, parent, id, title, pos, size, style);
@@ -178,6 +212,12 @@ class dipl_frame(wx.Frame):
 		self.menubar.Append(menu_help, "&Help");
 
 		#add items to menu_file
+		menu_new = wx.MenuItem(
+			menu_file, id = wx.NewId(),
+			text = "&New File\tCtrl-N"
+		);
+		self.Bind(wx.EVT_MENU, self.on_new, id = menu_new.GetId());
+		menu_file.Append(menu_new);
 		menu_open = wx.MenuItem(
 			menu_file, id = wx.NewId(),
 			text = "&Open File\tCtrl-O"
@@ -362,6 +402,18 @@ class dipl_frame(wx.Frame):
 	def on_panel_draw_paint(self, event):
 		if not (self.img is None):
 			self.img.display();
+
+	def on_new(self, event):
+		dialog = dialog_new(self);
+		if dialog.ShowModal() == wx.ID_OK:
+			height = int(dialog.text_height.GetValue());
+			width = int(dialog.text_width.GetValue());
+			if height > 0 and width > 0:
+				self.img = dimage(panel = self.panel_draw);
+				self.img.create([height, width, 3]);
+				self.img.display();
+				self.SetStatusText(str(self.img.scale[0]), 1);
+		dialog.Destroy();
 
 	def on_open(self, event):
 		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
