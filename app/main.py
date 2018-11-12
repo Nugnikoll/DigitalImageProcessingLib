@@ -12,6 +12,13 @@ sys.path.append("../python");
 import jpeg;
 
 def img2numpy(wximg):
+	buf = wximg.GetDataBuffer();
+	data = np.frombuffer(buf, dtype="uint8");
+	data = data.reshape((wximg.GetHeight(), wximg.GetWidth(), -1));
+	data = data.astype(np.int32);
+	return data;
+
+def bitmap2numpy(wximg):
 	img = wximg.ConvertToImage();
 	buf = img.GetDataBuffer();
 	data = np.frombuffer(buf, dtype="uint8");
@@ -20,6 +27,11 @@ def img2numpy(wximg):
 	return data;
 
 def numpy2img(data):
+	buf = data.ravel().astype(np.uint8).tobytes();
+	wximg = wx.Image(data.shape[1], data.shape[0], buf);
+	return wximg;
+
+def numpy2bitmap(data):
 	buf = data.ravel().astype(np.uint8).tobytes();
 	wximg = wx.Image(data.shape[1], data.shape[0], buf).ConvertToBitmap();
 	return wximg;
@@ -32,10 +44,10 @@ class dimage:
 		self.panel = panel;
 
 	def load(self, filename):
-		self.data = img2numpy(wx.Bitmap(filename));
+		self.data = img2numpy(wx.Image(filename));
 
 	def save(self, filename):
-		numpy2img(self.data).ConvertToImage().SaveFile(filename);
+		numpy2img(self.data).SaveFile(filename);
 
 	def display(self):
 		dc = wx.ClientDC(self.panel);
@@ -65,7 +77,7 @@ class dimage:
 		data = np.empty(shape2, dtype = np.int32);
 		for i in range(shape[2]):
 			data[:, :, i] = jpeg.resize_near(self.data[pos1[0]: pos2[0], pos1[1]: pos2[1], i].copy(), int(shape2[0]), int(shape2[1]));
-		dc.DrawBitmap(numpy2img(data), pos3[1], pos3[0]);
+		dc.DrawBitmap(numpy2bitmap(data), pos3[1], pos3[0]);
 		
 
 	def move(self, distance):
@@ -307,7 +319,9 @@ class dipl_frame(wx.Frame):
 		self.panel_draw.SetBackgroundColour(wx.BLACK);
 		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
 		self.panel_draw.flag_down = False;
+		self.panel_draw.thick = 5;
 		self.panel_draw.pos = (0, 0);
+		self.panel_draw.pos_img = (0, 0);
 		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
 		self.panel_draw.Bind(wx.EVT_LEFT_DOWN, self.on_panel_draw_leftdown);
 		self.panel_draw.Bind(wx.EVT_LEFT_UP, self.on_panel_draw_leftup);
@@ -415,20 +429,25 @@ class dipl_frame(wx.Frame):
 		if self.img is None:
 			return;
 
-		pos1 = np.array(event.GetPosition())[::-1];
-		pos2 = (pos1 - self.img.pos) / self.img.scale;
-		self.SetStatusText("(%d,%d)->(%d,%d)" % (pos2[1], pos2[0], pos1[1], pos1[0]), 2);
+		pos = np.array(event.GetPosition())[::-1];
+		pos_img = (pos - self.img.pos) / self.img.scale;
+		self.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
 
 		if self.panel_draw.flag_down:
 			if self.status == self.s_pencil:
-				dc = wx.ClientDC(self.panel_draw);
+				img = numpy2bitmap(self.img.data);
+				dc = wx.MemoryDC();
+				dc.SelectObject(img);
 				dc.SetBrush(wx.BLACK_BRUSH);
-				dc.SetPen(wx.Pen(wx.BLACK, 10));
-				dc.DrawLine(event.GetPosition(), self.panel_draw.pos);
-			elif self.status == self.s_grab:
-				self.img.move((np.array(event.GetPosition()) - np.array(self.panel_draw.pos))[::-1]);
+				dc.SetPen(wx.Pen(wx.BLACK, self.panel_draw.thick));
+				dc.DrawLine(self.panel_draw.pos_img[::-1], pos_img[::-1]);
+				self.img.data = bitmap2numpy(img);
 				self.img.display();
-		self.panel_draw.pos = event.GetPosition();
+			elif self.status == self.s_grab:
+				self.img.move((np.array(pos) - np.array(self.panel_draw.pos)));
+				self.img.display();
+		self.panel_draw.pos = pos;
+		self.panel_draw.pos_img = pos_img;
 
 	def on_panel_draw_leftup(self, event):
 		self.panel_draw.flag_down = False;
