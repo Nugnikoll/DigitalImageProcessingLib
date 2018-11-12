@@ -228,6 +228,13 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
 
+		self.id_tool_picker = wx.NewId();
+		self.icon_picker = wx.Bitmap("../icon/picker.png");
+		tool_mouse.AddTool(
+			self.id_tool_picker, "picker", self.icon_picker, shortHelp = "picker"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
+
 		self.id_zoom_in = wx.NewId();
 		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
 		tool_mouse.AddTool(
@@ -316,8 +323,9 @@ class dipl_frame(wx.Frame):
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
-		self.s_zoom_in = 3;
-		self.s_zoom_out = 4;
+		self.s_picker = 3;
+		self.s_zoom_in = 4;
+		self.s_zoom_out = 5;
 		self.status = self.s_normal;
 
 	def on_quit(self, event):
@@ -446,6 +454,10 @@ class dipl_frame(wx.Frame):
 		self.status = self.s_pencil;
 		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
 
+	def on_picker(self, event):
+		self.status = self.s_picker;
+		self.panel_draw.SetCursor(wx.Cursor(self.icon_picker.ConvertToImage()));
+
 	def on_zoom_in(self, event):
 		self.status = self.s_zoom_in;
 		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_in.ConvertToImage()));
@@ -469,6 +481,12 @@ class dipl_frame(wx.Frame):
 			return;
 		if self.status == self.s_grab:
 			self.panel_draw.SetCursor(wx.Cursor(self.icon_grabbing.ConvertToImage()));
+		elif self.status == self.s_picker:
+			pos1 = np.array(event.GetPosition())[::-1];
+			pos2 = (pos1 - self.img.pos) / self.img.scale;
+			self.SetStatusText("(%d,%d)->(%d,%d)" % (pos2[1], pos2[0], pos1[1], pos1[0]), 2);
+			color_pick = self.img.data[int(pos2[0]), int(pos2[1]), :];
+			self.SetStatusText(str(color_pick), 0);
 
 	def on_panel_draw_motion(self, event):
 		if self.img is None:
@@ -661,7 +679,7 @@ class dipl_app(wx.App):
 
 	#overload the initializer
 	def OnInit(self):
-		self.frame = dipl_frame(None, title = "Digital Image Processing", size = (900, 650));
+		self.frame = dipl_frame(None, title = "Digital Image Processing", size = (1100, 700));
 		return True;
 
 if __name__ == "__main__":
