@@ -255,6 +255,11 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_fit, id = self.id_zoom_fit);
 
+		self.color_pick = np.array((0, 0, 0));
+		self.button_color = wx.Button(tool_mouse, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
+		self.button_color.SetBackgroundColour(wx.Colour(self.color_pick));
+		tool_mouse.AddControl(self.button_color);
+
 		tool_mouse.AddSeparator();
 		tool_mouse.Realize();
 		sizer_tool.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 1);
@@ -357,91 +362,6 @@ class dipl_frame(wx.Frame):
 			self.img.save(self.path);
 		dialog.Destroy();
 
-	def on_resize(self, event):
-		if self.img is None:
-			return;
-
-		dialog = wx.TextEntryDialog(self, message = "Please input the height of the image.", caption = "Resize", value = str(self.img.data.shape[0]));
-		if dialog.ShowModal() == wx.ID_OK:
-			height = int(dialog.GetValue());
-			if height <= 0:
-				return;
-		else:
-			return;
-		dialog = wx.TextEntryDialog(self, message = "Please input the width of the image.", caption = "Resize", value = str(self.img.data.shape[1]));
-		if dialog.ShowModal() == wx.ID_OK:
-			width = int(dialog.GetValue());
-			if width <= 0:
-				return;
-		else:
-			return;
-
-		if event.GetId() == self.menu_resize_near.GetId():
-			self.img.resize_near(np.array((height, width)));
-		elif event.GetId() == self.menu_resize_linear.GetId():
-			self.img.resize_linear(np.array((height, width)));
-		else:
-			return;
-		self.img.display();
-
-	def on_equalize(self, event):
-		if self.img is None:
-			return;
-
-		self.img.equalize();
-		self.img.display();
-
-	def on_power(self, event):
-		if self.img is None:
-			return;
-
-		dialog = wx.TextEntryDialog(self, message = "Please input the power.", caption = "Power Law", value = str(0.65));
-		if dialog.ShowModal() == wx.ID_OK:
-			gamma = float(dialog.GetValue());
-		else:
-			return;
-
-		self.img.power_law(gamma);
-		self.img.display();
-
-	def on_blur(self, event):
-		if self.img is None:
-			return;
-
-		dialog = wx.TextEntryDialog(self, message = "Please input the kernel size.", caption = "Blur", value = str(5));
-		if dialog.ShowModal() == wx.ID_OK:
-			kernel_size = int(dialog.GetValue());
-			if kernel_size <= 0:
-				return;
-		else:
-			return;
-
-		kernel = np.array([[min([i + 1, j + 1, kernel_size - i, kernel_size - j]) for j in range(kernel_size)] for i in range(kernel_size)], dtype = np.float64);
-		kernel /= np.sum(kernel);
-
-		self.img.convolute(kernel);
-		self.img.display();
-
-	def on_sharpen(self, event):
-		if self.img is None:
-			return;
-
-		dialog = wx.TextEntryDialog(self, message = "Please input the coefficient of laplacian.", caption = "Power Law", value = str(-0.65));
-		if dialog.ShowModal() == wx.ID_OK:
-			alpha = float(dialog.GetValue());
-		else:
-			return;
-
-		self.img.sharpen(alpha);
-		self.img.display();
-
-	def on_laplacian(self, event):
-		if self.img is None:
-			return;
-
-		self.img.laplacian();
-		self.img.display();
-
 	def on_normal(self, event):
 		self.status = self.s_normal;
 		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
@@ -456,7 +376,8 @@ class dipl_frame(wx.Frame):
 
 	def on_picker(self, event):
 		self.status = self.s_picker;
-		self.panel_draw.SetCursor(wx.Cursor(self.icon_picker.ConvertToImage()));
+		#self.panel_draw.SetCursor(wx.Cursor(self.icon_picker.ConvertToImage()));
+		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
 
 	def on_zoom_in(self, event):
 		self.status = self.s_zoom_in;
@@ -484,9 +405,11 @@ class dipl_frame(wx.Frame):
 		elif self.status == self.s_picker:
 			pos1 = np.array(event.GetPosition())[::-1];
 			pos2 = (pos1 - self.img.pos) / self.img.scale;
-			self.SetStatusText("(%d,%d)->(%d,%d)" % (pos2[1], pos2[0], pos1[1], pos1[0]), 2);
-			color_pick = self.img.data[int(pos2[0]), int(pos2[1]), :];
-			self.SetStatusText(str(color_pick), 0);
+			pos2 = pos2.astype(np.int32);
+			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
+				self.color_pick = self.img.data[pos2[0], pos2[1], :];
+				self.button_color.SetBackgroundColour(wx.Colour(self.color_pick));
+				self.SetStatusText(str(self.color_pick), 0);
 
 	def on_panel_draw_motion(self, event):
 		if self.img is None:
