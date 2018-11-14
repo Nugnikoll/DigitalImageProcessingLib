@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import wx;
+import wx.aui as aui;
 import sys;
 import os;
 import time;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
-from wx.lib import sized_controls
 
 sys.path.append("../python");
 import jpeg;
@@ -190,8 +190,8 @@ class dialog_new(wx.Dialog):
 
 class panel_draw(wx.Panel):
 
-	def __init__(self, parent):
-		super(panel_draw, self).__init__(parent = parent);
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_draw, self).__init__(parent = parent, size = size);
 		self.frame = parent;
 		while type(self.frame) != dipl_frame:
 			self.frame = self.frame.GetParent();
@@ -336,6 +336,10 @@ class dipl_frame(wx.Frame):
 #		frame_icon.CopyFromBitmap(wx.Bitmap(wx.Image("../img/")));
 #		self.SetIcon(frame_icon);
 
+		# tell FrameManager to manage this frame
+		self.manager = aui.AuiManager();
+		self.manager.SetManagedWindow(self);
+
 		#create a menu bar
 		self.menubar = wx.MenuBar();
 		self.SetMenuBar(self.menubar);
@@ -365,6 +369,12 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
 		menu_file.Append(menu_save);
+		menu_quit = wx.MenuItem(
+			menu_file, id = wx.NewId(),
+			text = "&Quit\tAlt-F4"
+		);
+		self.Bind(wx.EVT_MENU, self.on_quit, id = menu_quit.GetId());
+		menu_file.Append(menu_quit);
 
 		#add items to menu_help
 		menu_about = wx.MenuItem(
@@ -374,85 +384,9 @@ class dipl_frame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.on_about, id = menu_about.GetId());
 		menu_help.Append(menu_about);
 
-		#create background elements
-		sizer_base = wx.BoxSizer(wx.HORIZONTAL);
-		self.SetSizer(sizer_base);
-		self.panel_base = wx.Panel(self);
-		self.panel_base.SetBackgroundColour(wx.Colour(50,50,50));
-		sizer_base.Add(self.panel_base, 1, wx.ALL | wx.EXPAND, 0);
-		sizer_main = wx.BoxSizer(wx.VERTICAL);
-		self.panel_base.SetSizer(sizer_main);
-
-		#create a panel to hold toolbars
-		panel_tool = wx.Panel(self.panel_base);
-		panel_tool.SetBackgroundColour(wx.Colour(240,240,240));
-		sizer_main.Add(panel_tool, 0, wx.ALL | wx.EXPAND, 5);
-		sizer_tool = wx.BoxSizer(wx.HORIZONTAL);
-		panel_tool.SetSizer(sizer_tool);
-
 		#create a toolbar
-		tool_mouse = wx.ToolBar(panel_tool, style = wx.TB_FLAT | wx.TB_NODIVIDER);
-
-		self.id_tool_normal = wx.NewId();
-		self.icon_normal = wx.Bitmap("../icon/default.png");
-		tool_mouse.AddTool(
-			self.id_tool_normal, "normal", self.icon_normal, shortHelp = "normal"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
-
-		self.id_tool_grab = wx.NewId();
-		self.icon_grab = wx.Bitmap("../icon/grab.png");
-		self.icon_grabbing = wx.Bitmap("../icon/grabbing.png");
-		tool_mouse.AddTool(
-			self.id_tool_grab, "grab", self.icon_grab, shortHelp = "grab"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
-
-		self.id_tool_pencil = wx.NewId();
-		self.icon_pencil = wx.Bitmap("../icon/pencil.png");
-		tool_mouse.AddTool(
-			self.id_tool_pencil, "pencil", self.icon_pencil, shortHelp = "pencil"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
-
-		self.id_tool_picker = wx.NewId();
-		self.icon_picker = wx.Bitmap("../icon/picker.png");
-		tool_mouse.AddTool(
-			self.id_tool_picker, "picker", self.icon_picker, shortHelp = "picker"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
-
-		self.id_zoom_in = wx.NewId();
-		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
-		tool_mouse.AddTool(
-			self.id_zoom_in, "zoom_in", self.icon_zoom_in, shortHelp = "zoom in"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
-
-		self.id_zoom_out = wx.NewId();
-		self.icon_zoom_out = wx.Bitmap("../icon/zoom-out.png");
-		tool_mouse.AddTool(
-			self.id_zoom_out, "zoom_out", self.icon_zoom_out, shortHelp = "zoom out"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
-
-		self.id_zoom_fit = wx.NewId();
-		tool_mouse.AddTool(
-			self.id_zoom_fit, "zoom_fit", wx.Bitmap("../icon/square_box.png"), shortHelp = "zoom fit"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_zoom_fit, id = self.id_zoom_fit);
-
-		self.color_pick = np.array((0, 0, 0));
-		self.button_color = wx.Button(tool_mouse, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color.SetBackgroundColour(wx.Colour(self.color_pick));
-		tool_mouse.AddControl(self.button_color);
-
-		tool_mouse.AddSeparator();
-		tool_mouse.Realize();
-		sizer_tool.Add(tool_mouse, 0, wx.ALL | wx.EXPAND, 1);
-
-		#create a toolbar
-		tool_transform = wx.ToolBar(panel_tool, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		tool_transform = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		tool_transform.SetToolBitmapSize(wx.Size(40,40));
 
 		self.choice_transform = wx.Choice(
 			tool_transform, wx.NewId(), choices = [
@@ -491,13 +425,98 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_TOOL, self.on_transform, id = self.id_tool_run);
 
-		tool_transform.AddSeparator();
 		tool_transform.Realize();
-		sizer_tool.Add(tool_transform, 0, wx.ALL | wx.EXPAND, 1);
+		self.manager.AddPane(
+			tool_transform, aui.AuiPaneInfo().
+			Name("tool_transform").Caption("tool transform").
+			ToolbarPane().Top().Row(1).
+			LeftDockable(False).RightDockable(False).
+			TopDockable(True).BottomDockable(False)
+		);
+
+		#create a toolbar
+		tool_mouse = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		tool_mouse.SetToolBitmapSize(wx.Size(40,40));
+
+		self.id_tool_normal = wx.NewId();
+		self.icon_normal = wx.Bitmap("../icon/default.png");
+		tool_mouse.AddTool(
+			self.id_tool_normal, "normal", self.icon_normal, shortHelp = "normal"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
+
+		self.id_tool_grab = wx.NewId();
+		self.icon_grab = wx.Bitmap("../icon/grab.png");
+		self.icon_grabbing = wx.Bitmap("../icon/grabbing.png");
+		tool_mouse.AddTool(
+			self.id_tool_grab, "grab", self.icon_grab, shortHelp = "grab"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
+
+		self.id_zoom_in = wx.NewId();
+		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
+		tool_mouse.AddTool(
+			self.id_zoom_in, "zoom_in", self.icon_zoom_in, shortHelp = "zoom in"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
+
+		self.id_zoom_out = wx.NewId();
+		self.icon_zoom_out = wx.Bitmap("../icon/zoom-out.png");
+		tool_mouse.AddTool(
+			self.id_zoom_out, "zoom_out", self.icon_zoom_out, shortHelp = "zoom out"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
+
+		self.id_zoom_fit = wx.NewId();
+		tool_mouse.AddTool(
+			self.id_zoom_fit, "zoom_fit", wx.Bitmap("../icon/square_box.png"), shortHelp = "zoom fit"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_zoom_fit, id = self.id_zoom_fit);
+
+		tool_mouse.Realize();
+		self.manager.AddPane(
+			tool_mouse, aui.AuiPaneInfo().
+			Name("tool_mouse").Caption("tool mouse").
+			ToolbarPane().Top().Row(1).
+			LeftDockable(False).RightDockable(False).
+			TopDockable(True).BottomDockable(False)
+		);
+
+		#create a toolbar
+		tool_draw = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER | wx.TB_VERTICAL);
+		tool_draw.SetToolBitmapSize(wx.Size(40,40));
+
+		self.color_pick = np.array((0, 0, 0));
+		self.button_color = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
+		self.button_color.SetBackgroundColour(wx.Colour(self.color_pick));
+		tool_draw.AddControl(self.button_color);
+
+		self.id_tool_pencil = wx.NewId();
+		self.icon_pencil = wx.Bitmap("../icon/pencil.png");
+		tool_draw.AddTool(
+			self.id_tool_pencil, "pencil", self.icon_pencil, shortHelp = "pencil"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
+
+		self.id_tool_picker = wx.NewId();
+		self.icon_picker = wx.Bitmap("../icon/picker.png");
+		tool_draw.AddTool(
+			self.id_tool_picker, "picker", self.icon_picker, shortHelp = "picker"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
+
+		tool_draw.Realize();
+		self.manager.AddPane(
+			tool_draw, aui.AuiPaneInfo().
+			Name("tool_draw").Caption("tool draw").
+			ToolbarPane().Left().
+			LeftDockable(True).RightDockable(False).
+			TopDockable(False).BottomDockable(False)
+		);
 
 		#create a panel to draw pictures
-		self.panel_draw = panel_draw(self.panel_base);
-		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
+		self.panel_draw = panel_draw(self, size = (1000, 600));
+		self.manager.AddPane(self.panel_draw, aui.AuiPaneInfo().Name("panel draw").CenterPane());
 
 		#add a status bar
 		self.status_bar = wx.StatusBar(self, wx.NewId());
@@ -506,6 +525,7 @@ class dipl_frame(wx.Frame):
 		self.SetStatusBar(self.status_bar);
 
 		#show the frame
+		self.manager.Update()
 		self.Show(True);
 
 		self.s_normal = 0;
@@ -515,6 +535,11 @@ class dipl_frame(wx.Frame):
 		self.s_zoom_in = 4;
 		self.s_zoom_out = 5;
 		self.status = self.s_normal;
+
+	def Destroy(self):
+		self.manager.UnInit();
+		del self.manager;
+		return super(dipl_frame, self).Destroy();
 
 	def on_quit(self, event):
 		self.Close();
