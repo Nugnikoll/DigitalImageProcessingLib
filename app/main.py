@@ -240,18 +240,19 @@ class panel_draw(wx.Panel):
 	def set_status(self, status):
 		self.status = status;
 		if status == self.s_normal:
-			self.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
+			#self.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
+			self.SetCursor(self.frame.icon_normal);
 		elif status == self.s_grab:
-			self.SetCursor(wx.Cursor(self.frame.icon_grab.ConvertToImage()));
+			self.SetCursor(self.frame.icon_grab);
 		elif status == self.s_pencil:
-			self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+			#self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+			self.SetCursor(self.frame.icon_pencil);
 		elif status == self.s_picker:
-			#self.SetCursor(wx.Cursor(self.frame.icon_picker.ConvertToImage()));
-			self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+			self.SetCursor(self.frame.icon_picker);
 		elif status == self.s_zoom_in:
-			self.SetCursor(wx.Cursor(self.frame.icon_zoom_in.ConvertToImage()));
+			self.SetCursor(self.frame.icon_zoom_in);
 		elif status == self.s_zoom_out:
-			self.SetCursor(wx.Cursor(self.frame.icon_zoom_out.ConvertToImage()));
+			self.SetCursor(self.frame.icon_zoom_out);
 
 	def on_paint(self, event):
 		if not (self.img is None):
@@ -262,7 +263,7 @@ class panel_draw(wx.Panel):
 		if self.img is None:
 			return;
 		if self.status == self.s_grab:
-			self.SetCursor(wx.Cursor(self.frame.icon_grabbing.ConvertToImage()));
+			self.SetCursor(self.frame.icon_grabbing);
 		elif self.status == self.s_picker:
 			pos1 = np.array(event.GetPosition())[::-1];
 			pos2 = (pos1 - self.img.pos) / self.img.scale;
@@ -303,7 +304,7 @@ class panel_draw(wx.Panel):
 			return;
 
 		if self.status == self.s_grab:
-			self.SetCursor(wx.Cursor(self.frame.icon_grab.ConvertToImage()));
+			self.SetCursor(self.frame.icon_grab);
 			dc = wx.ClientDC(self);
 			dc.Clear();
 			self.img.display();
@@ -439,32 +440,45 @@ class dipl_frame(wx.Frame):
 		tool_mouse.SetToolBitmapSize(wx.Size(40,40));
 
 		self.id_tool_normal = wx.NewId();
-		self.icon_normal = wx.Bitmap("../icon/default.png");
+		self.icon_normal = wx.Image("../icon/default.png");
 		tool_mouse.AddTool(
-			self.id_tool_normal, "normal", self.icon_normal, shortHelp = "normal"
+			self.id_tool_normal, "normal", self.icon_normal.ConvertToBitmap(), shortHelp = "normal"
 		);
+		self.icon_normal = wx.Cursor(self.icon_normal);
 		self.Bind(wx.EVT_TOOL, self.on_normal, id = self.id_tool_normal);
 
 		self.id_tool_grab = wx.NewId();
-		self.icon_grab = wx.Bitmap("../icon/grab.png");
-		self.icon_grabbing = wx.Bitmap("../icon/grabbing.png");
+		self.icon_grab = wx.Image("../icon/grab.png");
+		self.icon_grab.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 12);
+		self.icon_grab.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 14);
+		self.icon_grabbing = wx.Image("../icon/grabbing.png");
+		self.icon_grabbing.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 12);
+		self.icon_grabbing.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 14);
 		tool_mouse.AddTool(
-			self.id_tool_grab, "grab", self.icon_grab, shortHelp = "grab"
+			self.id_tool_grab, "grab", self.icon_grab.ConvertToBitmap(), shortHelp = "grab"
 		);
+		self.icon_grab = wx.Cursor(self.icon_grab);
+		self.icon_grabbing = wx.Cursor(self.icon_grabbing);
 		self.Bind(wx.EVT_TOOL, self.on_grab, id = self.id_tool_grab);
 
 		self.id_zoom_in = wx.NewId();
-		self.icon_zoom_in = wx.Bitmap("../icon/zoom-in.png");
+		self.icon_zoom_in = wx.Image("../icon/zoom-in.png");
+		self.icon_zoom_in.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 10);
+		self.icon_zoom_in.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 9);
 		tool_mouse.AddTool(
-			self.id_zoom_in, "zoom_in", self.icon_zoom_in, shortHelp = "zoom in"
+			self.id_zoom_in, "zoom_in", self.icon_zoom_in.ConvertToBitmap(), shortHelp = "zoom in"
 		);
+		self.icon_zoom_in = wx.Cursor(self.icon_zoom_in);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_in, id = self.id_zoom_in);
 
 		self.id_zoom_out = wx.NewId();
-		self.icon_zoom_out = wx.Bitmap("../icon/zoom-out.png");
+		self.icon_zoom_out = wx.Image("../icon/zoom-out.png");
+		self.icon_zoom_out.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 10);
+		self.icon_zoom_out.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 9);
 		tool_mouse.AddTool(
-			self.id_zoom_out, "zoom_out", self.icon_zoom_out, shortHelp = "zoom out"
+			self.id_zoom_out, "zoom_out", self.icon_zoom_out.ConvertToBitmap(), shortHelp = "zoom out"
 		);
+		self.icon_zoom_out = wx.Cursor(self.icon_zoom_out);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
 
 		self.id_zoom_fit = wx.NewId();
@@ -486,23 +500,29 @@ class dipl_frame(wx.Frame):
 		tool_draw = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER | wx.TB_VERTICAL);
 		tool_draw.SetToolBitmapSize(wx.Size(40,40));
 
-		self.color_pick = np.array((0, 0, 0));
 		self.button_color = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color.SetBackgroundColour(wx.Colour(self.color_pick));
+		self.button_color.SetBackgroundColour(wx.Colour((0, 0, 0)));
+		self.button_color.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		tool_draw.AddControl(self.button_color);
 
 		self.id_tool_pencil = wx.NewId();
-		self.icon_pencil = wx.Bitmap("../icon/pencil.png");
+		self.icon_pencil = wx.Image("../icon/pencil.png");
+		self.icon_pencil.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 6);
+		self.icon_pencil.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 22);
 		tool_draw.AddTool(
-			self.id_tool_pencil, "pencil", self.icon_pencil, shortHelp = "pencil"
+			self.id_tool_pencil, "pencil", self.icon_pencil.ConvertToBitmap(), shortHelp = "pencil"
 		);
+		self.icon_pencil = wx.Cursor(self.icon_pencil)
 		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
 
 		self.id_tool_picker = wx.NewId();
-		self.icon_picker = wx.Bitmap("../icon/picker.png");
+		self.icon_picker = wx.Image("../icon/picker.png");
+		self.icon_picker.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 5);
+		self.icon_picker.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 19);
 		tool_draw.AddTool(
-			self.id_tool_picker, "picker", self.icon_picker, shortHelp = "picker"
+			self.id_tool_picker, "picker", self.icon_picker.ConvertToBitmap(), shortHelp = "picker"
 		);
+		self.icon_picker = wx.Cursor(self.icon_picker);
 		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
 
 		tool_draw.Realize();
@@ -596,6 +616,12 @@ class dipl_frame(wx.Frame):
 		dc = wx.ClientDC(self.panel_draw);
 		dc.Clear();
 		self.panel_draw.img.display();
+
+	def on_color_pick(self, event):
+		dialog = wx.ColourDialog(self);
+		if dialog.ShowModal() == wx.ID_OK:
+			self.panel_draw.color = dialog.GetColourData().GetColour();
+			self.button_color.SetBackgroundColour(self.panel_draw.color);
 
 	def on_choice_transform(self, event):
 		sel = self.choice_transform.GetCurrentSelection();
