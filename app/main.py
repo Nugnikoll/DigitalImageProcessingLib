@@ -322,6 +322,7 @@ class dipl_frame(wx.Frame):
 		self.choice_transform = wx.Choice(
 			tool_transform, wx.NewId(), choices = [
 				"Set Color",
+				"Pencil Style",
 				"Resize Image (Nearest Point)",
 				"Resize Image (Bilinear)",
 				"Histogram Equalization",
@@ -555,6 +556,18 @@ class dipl_frame(wx.Frame):
 			return;
 		num += 1;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" width:");
+			self.text_input1.Show();
+			self.text_input1.SetValue(str(self.panel_draw.thick));
+			self.text_input_info2.Hide();
+			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
 		if sel == num or sel == num + 1:
 			self.text_input_info1.Show();
 			self.text_input_info2.Show();
@@ -644,6 +657,14 @@ class dipl_frame(wx.Frame):
 				return;
 			self.panel_draw.color = wx.Colour(red, green, blue);
 			self.button_color.SetBackgroundColour(self.panel_draw.color);
+			return;
+		num += 1;
+
+		if sel == num:
+			thick = int(self.text_input1.GetValue());
+			if thick <= 0:
+				return;
+			self.panel_draw.thick = thick;
 			return;
 		num += 1;
 
