@@ -188,6 +188,141 @@ class dialog_new(wx.Dialog):
 
 		#self.Fit();
 
+class panel_draw(wx.Panel):
+
+	def __init__(self, parent):
+		super(panel_draw, self).__init__(parent = parent);
+		self.frame = parent;
+		while type(self.frame) != dipl_frame:
+			self.frame = self.frame.GetParent();
+		self.SetBackgroundColour(wx.BLACK);
+
+		self.Bind(wx.EVT_PAINT, self.on_paint);
+		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
+		self.Bind(wx.EVT_LEFT_UP, self.on_leftup);
+		self.Bind(wx.EVT_MOTION, self.on_motion);
+
+		self.path = None;
+		self.img = None;
+
+		self.flag_down = False;
+		self.thick = 5;
+		self.color = wx.Colour(0, 0, 0);
+		self.pos = (0, 0);
+		self.pos_img = (0, 0);
+
+		self.s_normal = 0;
+		self.s_grab = 1;
+		self.s_pencil = 2;
+		self.s_picker = 3;
+		self.s_zoom_in = 4;
+		self.s_zoom_out = 5;
+		self.status = self.s_normal;
+
+	def new_image(self, size):
+		assert(size[0] > 0 and size[1] > 0);
+		self.img = dimage(panel = self);
+		self.img.create([size[0], size[1], 3]);
+		self.img.display();
+		self.frame.SetStatusText(str(self.img.scale[0]), 1);
+
+	def open_image(self, path):
+		self.path = path;
+		self.img = dimage(panel = self);
+		self.img.load(self.path);
+		self.img.display();
+		self.frame.SetStatusText(str(self.img.scale[0]), 1);
+
+	def save_image(self, path):
+		self.path = path;
+		self.img.save(self.path);
+
+	def set_status(self, status):
+		self.status = status;
+		if status == self.s_normal:
+			self.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
+		elif status == self.s_grab:
+			self.SetCursor(wx.Cursor(self.frame.icon_grab.ConvertToImage()));
+		elif status == self.s_pencil:
+			self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+		elif status == self.s_picker:
+			#self.SetCursor(wx.Cursor(self.frame.icon_picker.ConvertToImage()));
+			self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+		elif status == self.s_zoom_in:
+			self.SetCursor(wx.Cursor(self.frame.icon_zoom_in.ConvertToImage()));
+		elif status == self.s_zoom_out:
+			self.SetCursor(wx.Cursor(self.frame.icon_zoom_out.ConvertToImage()));
+
+	def on_paint(self, event):
+		if not (self.img is None):
+			self.img.display();
+
+	def on_leftdown(self, event):
+		self.flag_down = True;
+		if self.img is None:
+			return;
+		if self.status == self.s_grab:
+			self.SetCursor(wx.Cursor(self.frame.icon_grabbing.ConvertToImage()));
+		elif self.status == self.s_picker:
+			pos1 = np.array(event.GetPosition())[::-1];
+			pos2 = (pos1 - self.img.pos) / self.img.scale;
+			pos2 = pos2.astype(np.int32);
+			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
+				color = self.img.data[pos2[0], pos2[1], :];
+				self.color = wx.Colour(color);
+				self.frame.button_color.SetBackgroundColour(self.color);
+				self.frame.SetStatusText(str(color), 0);
+
+	def on_motion(self, event):
+		if self.img is None:
+			return;
+
+		pos = np.array(event.GetPosition())[::-1];
+		pos_img = (pos - self.img.pos) / self.img.scale;
+		self.frame.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
+
+		if self.flag_down:
+			if self.status == self.s_pencil:
+				img = numpy2bitmap(self.img.data);
+				dc = wx.MemoryDC();
+				dc.SelectObject(img);
+				dc.SetPen(wx.Pen(self.color, self.thick));
+				dc.DrawLine(self.pos_img[::-1], pos_img[::-1]);
+				self.img.data = bitmap2numpy(img);
+				self.img.display();
+			elif self.status == self.s_grab:
+				self.img.move((np.array(pos) - np.array(self.pos)));
+				self.img.display();
+		self.pos = pos;
+		self.pos_img = pos_img;
+
+	def on_leftup(self, event):
+		self.flag_down = False;
+
+		if self.img is None:
+			return;
+
+		if self.status == self.s_grab:
+			self.SetCursor(wx.Cursor(self.frame.icon_grab.ConvertToImage()));
+			dc = wx.ClientDC(self);
+			dc.Clear();
+			self.img.display();
+		elif self.status == self.s_zoom_in:
+			if self.img.scale[0] > 450:
+				return;
+			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
+			self.frame.SetStatusText(str(self.img.scale[0]), 1);
+			dc = wx.ClientDC(self);
+			dc.Clear();
+			self.img.display();
+		elif self.status == self.s_zoom_out:
+			if self.img.scale[0] < 1e-5:
+				return;
+			self.img.rescale(np.array(event.GetPosition())[::-1], 1/1.2);
+			self.frame.SetStatusText(str(self.img.scale[0]), 1);
+			dc = wx.ClientDC(self);
+			dc.Clear();
+			self.img.display();
 
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
@@ -361,18 +496,8 @@ class dipl_frame(wx.Frame):
 		sizer_tool.Add(tool_transform, 0, wx.ALL | wx.EXPAND, 1);
 
 		#create a panel to draw pictures
-		self.panel_draw = wx.Panel(self.panel_base);
-		self.panel_draw.SetBackgroundColour(wx.BLACK);
+		self.panel_draw = panel_draw(self.panel_base);
 		sizer_main.Add(self.panel_draw, 1, wx.ALL | wx.EXPAND, 5);
-		self.panel_draw.flag_down = False;
-		self.panel_draw.thick = 5;
-		self.panel_draw.color = wx.Colour(0, 0, 0);
-		self.panel_draw.pos = (0, 0);
-		self.panel_draw.pos_img = (0, 0);
-		self.panel_draw.Bind(wx.EVT_PAINT, self.on_panel_draw_paint);
-		self.panel_draw.Bind(wx.EVT_LEFT_DOWN, self.on_panel_draw_leftdown);
-		self.panel_draw.Bind(wx.EVT_LEFT_UP, self.on_panel_draw_leftup);
-		self.panel_draw.Bind(wx.EVT_MOTION, self.on_panel_draw_motion);
 
 		#add a status bar
 		self.status_bar = wx.StatusBar(self, wx.NewId());
@@ -382,9 +507,6 @@ class dipl_frame(wx.Frame):
 
 		#show the frame
 		self.Show(True);
-
-		self.path = None;
-		self.img = None;
 
 		self.s_normal = 0;
 		self.s_grab = 1;
@@ -400,141 +522,55 @@ class dipl_frame(wx.Frame):
 	def on_about(self, event):
 		wx.MessageBox("Digital Image Processing Library\nBy Rick", "About");
 
-	def on_panel_draw_paint(self, event):
-		if not (self.img is None):
-			self.img.display();
-
 	def on_new(self, event):
 		dialog = dialog_new(self);
 		if dialog.ShowModal() == wx.ID_OK:
 			height = int(dialog.text_height.GetValue());
 			width = int(dialog.text_width.GetValue());
 			if height > 0 and width > 0:
-				self.img = dimage(panel = self.panel_draw);
-				self.img.create([height, width, 3]);
-				self.img.display();
-				self.SetStatusText(str(self.img.scale[0]), 1);
+				self.panel_draw.new_image((height, width));
 		dialog.Destroy();
 
 	def on_open(self, event):
 		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
-			self.path = dialog.GetPath();
-			self.img = dimage(panel = self.panel_draw);
-			self.img.load(self.path);
-			self.img.display();
-			self.SetStatusText(str(self.img.scale[0]), 1);
+			self.panel_draw.open_image(dialog.GetPath());
 		dialog.Destroy();
 
 	def on_save(self, event):
-		if self.img is None:
+		if self.panel_draw.img is None:
 			return;
 		dialog = wx.FileDialog(self, message = "Save File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
 		if dialog.ShowModal() == wx.ID_OK:
-			self.path = dialog.GetPath();
-			self.img.save(self.path);
+			self.panel.save_image(dialog.GetPath());
 		dialog.Destroy();
 
 	def on_normal(self, event):
-		self.status = self.s_normal;
-		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
+		self.panel_draw.set_status(self.panel_draw.s_normal);
 
 	def on_grab(self, event):
-		self.status = self.s_grab;
-		self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
+		self.panel_draw.set_status(self.panel_draw.s_grab);
 
 	def on_pencil(self, event):
-		self.status = self.s_pencil;
-		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+		self.panel_draw.set_status(self.panel_draw.s_pencil);
 
 	def on_picker(self, event):
-		self.status = self.s_picker;
-		#self.panel_draw.SetCursor(wx.Cursor(self.icon_picker.ConvertToImage()));
-		self.panel_draw.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
+		self.panel_draw.set_status(self.panel_draw.s_picker);
 
 	def on_zoom_in(self, event):
-		self.status = self.s_zoom_in;
-		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_in.ConvertToImage()));
+		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
 
 	def on_zoom_out(self, event):
-		self.status = self.s_zoom_out;
-		self.panel_draw.SetCursor(wx.Cursor(self.icon_zoom_out.ConvertToImage()));
+		self.panel_draw.set_status(self.panel_draw.s_zoom_out);
 
 	def on_zoom_fit(self, event):
-		if self.img is None:
+		if self.panel_draw.img is None:
 			return;
-		self.img.zoom_fit(np.array(self.panel_draw.GetSize())[::-1]);
-		self.SetStatusText(str(self.img.scale[0]), 1);
+		self.panel_draw.img.zoom_fit(np.array(self.panel_draw.GetSize())[::-1]);
+		self.SetStatusText(str(self.panel_draw.img.scale[0]), 1);
 		dc = wx.ClientDC(self.panel_draw);
 		dc.Clear();
-		self.img.display();
-
-	def on_panel_draw_leftdown(self, event):
-		self.panel_draw.flag_down = True;
-		if self.img is None:
-			return;
-		if self.status == self.s_grab:
-			self.panel_draw.SetCursor(wx.Cursor(self.icon_grabbing.ConvertToImage()));
-		elif self.status == self.s_picker:
-			pos1 = np.array(event.GetPosition())[::-1];
-			pos2 = (pos1 - self.img.pos) / self.img.scale;
-			pos2 = pos2.astype(np.int32);
-			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
-				color = self.img.data[pos2[0], pos2[1], :];
-				self.panel_draw.color = wx.Colour(color);
-				self.button_color.SetBackgroundColour(self.panel_draw.color);
-				self.SetStatusText(str(color), 0);
-
-	def on_panel_draw_motion(self, event):
-		if self.img is None:
-			return;
-
-		pos = np.array(event.GetPosition())[::-1];
-		pos_img = (pos - self.img.pos) / self.img.scale;
-		self.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
-
-		if self.panel_draw.flag_down:
-			if self.status == self.s_pencil:
-				img = numpy2bitmap(self.img.data);
-				dc = wx.MemoryDC();
-				dc.SelectObject(img);
-				dc.SetPen(wx.Pen(self.panel_draw.color, self.panel_draw.thick));
-				dc.DrawLine(self.panel_draw.pos_img[::-1], pos_img[::-1]);
-				self.img.data = bitmap2numpy(img);
-				self.img.display();
-			elif self.status == self.s_grab:
-				self.img.move((np.array(pos) - np.array(self.panel_draw.pos)));
-				self.img.display();
-		self.panel_draw.pos = pos;
-		self.panel_draw.pos_img = pos_img;
-
-	def on_panel_draw_leftup(self, event):
-		self.panel_draw.flag_down = False;
-
-		if self.img is None:
-			return;
-
-		if self.status == self.s_grab:
-			self.panel_draw.SetCursor(wx.Cursor(self.icon_grab.ConvertToImage()));
-			dc = wx.ClientDC(self.panel_draw);
-			dc.Clear();
-			self.img.display();
-		elif self.status == self.s_zoom_in:
-			if self.img.scale[0] > 450:
-				return;
-			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
-			self.SetStatusText(str(self.img.scale[0]), 1);
-			dc = wx.ClientDC(self.panel_draw);
-			dc.Clear();
-			self.img.display();
-		elif self.status == self.s_zoom_out:
-			if self.img.scale[0] < 1e-5:
-				return;
-			self.img.rescale(np.array(event.GetPosition())[::-1], 1/1.2);
-			self.SetStatusText(str(self.img.scale[0]), 1);
-			dc = wx.ClientDC(self.panel_draw);
-			dc.Clear();
-			self.img.display();
+		self.panel_draw.img.display();
 
 	def on_choice_transform(self, event):
 		sel = self.choice_transform.GetCurrentSelection();
@@ -575,9 +611,9 @@ class dipl_frame(wx.Frame):
 			self.text_input_info2.SetLabel(" width:");
 			self.text_input1.Show();
 			self.text_input2.Show();
-			if not (self.img is None):
-				self.text_input1.SetValue(str(self.img.data.shape[0]));
-				self.text_input2.SetValue(str(self.img.data.shape[1]));
+			if not (self.panel_draw.img is None):
+				self.text_input1.SetValue(str(self.panel_draw.img.data.shape[0]));
+				self.text_input2.SetValue(str(self.panel_draw.img.data.shape[1]));
 			else:
 				self.text_input1.SetValue(str(300));
 				self.text_input2.SetValue(str(400));
@@ -643,7 +679,7 @@ class dipl_frame(wx.Frame):
 		num += 1;
 
 	def on_transform(self, event):
-		if self.img is None:
+		if self.panel_draw.img is None:
 			return;
 
 		sel = self.choice_transform.GetCurrentSelection();
@@ -673,10 +709,10 @@ class dipl_frame(wx.Frame):
 			width = int(self.text_input2.GetValue());
 			if height <= 0 or width <= 0:
 				return;
-			self.img.resize_near(np.array((height, width)));
+			self.panel_draw.img.resize_near(np.array((height, width)));
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display();
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
@@ -685,16 +721,16 @@ class dipl_frame(wx.Frame):
 			width = int(self.text_input2.GetValue());
 			if height <= 0 or width <= 0:
 				return;
-			self.img.resize_linear(np.array((height, width)));
+			self.panel_draw.img.resize_linear(np.array((height, width)));
 			dc = wx.ClientDC(self.panel_draw);
 			dc.Clear();
-			self.img.display();
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
 		if sel == num:
-			self.img.equalize();
-			self.img.display();
+			self.panel_draw.img.equalize();
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
@@ -702,8 +738,8 @@ class dipl_frame(wx.Frame):
 			gamma = float(self.text_input1.GetValue());
 			if gamma <= 0:
 				return;
-			self.img.power_law(gamma);
-			self.img.display();
+			self.panel_draw.img.power_law(gamma);
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
@@ -717,21 +753,21 @@ class dipl_frame(wx.Frame):
 				] for i in range(kernel_size)
 			], dtype = np.float64);
 			kernel /= np.sum(kernel);
-			self.img.correlate(kernel);
-			self.img.display();
+			self.panel_draw.img.correlate(kernel);
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
 		if sel == num:
 			alpha = float(self.text_input1.GetValue());
-			self.img.sharpen(alpha);
-			self.img.display();
+			self.panel_draw.img.sharpen(alpha);
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
 		if sel == num:
-			self.img.laplacian();
-			self.img.display();
+			self.panel_draw.img.laplacian();
+			self.panel_draw.img.display();
 			return;
 		num += 1;
 
