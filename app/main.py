@@ -5,10 +5,12 @@ import wx.aui as aui;
 import sys;
 import os;
 import time;
+import copy;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
 
+from nn import *;
 sys.path.append("../python");
 import jpeg;
 
@@ -45,6 +47,10 @@ class dimage:
 		self.panel = panel;
 		self.backup = [];
 		self.record = [];
+
+	def copy(self):
+		img = dimage(self.data.copy(), self.panel);
+		return img;
 
 	def push(self):
 		if not self.data is None:
@@ -202,7 +208,7 @@ class dimage:
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
 		result -= np.min(result);
-		result = result.astype(np.float64) * 255 / np.max(result);
+		result = result.astype(np.float64) * 255 / max(np.max(result), 1);
 		result = result.astype(np.int32);
 		self.data = result;
 
@@ -469,7 +475,8 @@ class dipl_frame(wx.Frame):
 				"Power Law",
 				"Blur Image",
 				"Sharpen Image",
-				"Laplacian"
+				"Laplacian",
+				"MNIST CNN classification"
 			],
 			size = (180,-1)
 		);
@@ -635,6 +642,11 @@ class dipl_frame(wx.Frame):
 		self.s_zoom_in = 4;
 		self.s_zoom_out = 5;
 		self.status = self.s_normal;
+
+		self.net = cnn();
+		with open("cnn.dat", "rb") as fobj:
+			param = pickle.load(fobj);
+		self.net.load_state_dict(param);
 
 	def Destroy(self):
 		self.manager.UnInit();
@@ -803,6 +815,17 @@ class dipl_frame(wx.Frame):
 			return;
 		num += 1;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" number:  ")
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
 	def on_transform(self, event):
 		if self.panel_draw.img is None:
 			return;
@@ -872,6 +895,18 @@ class dipl_frame(wx.Frame):
 		if sel == num:
 			self.panel_draw.img.laplacian();
 			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			img = self.panel_draw.img.copy();
+			img.resize_linear((28, 28));
+			data = 1 - (np.mean(img.data, axis = 2) / 255);
+			data = data.reshape((1, 1, 28, 28));
+			data = Variable(torch.Tensor(data));
+			result = self.net(data).reshape(10);
+			prob, result = result.max(dim = 0);
+			self.text_input_info1.SetLabel(" number: %d probability: %.4f" % (result.data.item(), prob.data.item()));
 			return;
 		num += 1;
 
