@@ -43,16 +43,42 @@ class dimage:
 		self.pos = np.array([0, 0], dtype = np.int32);
 		self.scale = np.array([1, 1], dtype = np.float64);
 		self.panel = panel;
+		self.backup = [];
+		self.record = [];
+
+	def push(self):
+		if not self.data is None:
+			self.record = [];
+			self.backup.append(self.data);
+
+	def pop(self):
+		self.data = self.backup.pop();
+
+	def undo(self):
+		if len(self.backup) != 0:
+			self.record.append(self.data);
+			self.pop();
+
+	def redo(self):
+		if len(self.record) != 0:
+			self.backup.append(self.data);
+			self.data = self.record.pop();
 
 	def create(self, size):
+		self.push();
 		self.data = np.empty(size, dtype = np.int32);
 		self.data[:] = 255;
 
 	def load(self, filename):
+		self.push();
 		self.data = img2numpy(wx.Image(filename));
 
 	def save(self, filename):
 		numpy2img(self.data).SaveFile(filename);
+
+	def origin(self):
+		self.pos = np.array([0, 0], dtype = np.int32);
+		self.scale = np.array([1, 1], dtype = np.float64);
 
 	def display(self):
 		dc = wx.ClientDC(self.panel);
@@ -106,40 +132,48 @@ class dimage:
 			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
 
 	def draw_lines(self, pos_list):
+		self.push();
 		pos_list = [i[::-1] for i in pos_list];
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(self.panel.color, self.panel.thick));
-		dc.DrawLines(pos_list);
+		if len(pos_list) > 1:
+			dc.DrawLines(pos_list);
+		else:
+			dc.DrawPoint(pos_list[0]);
 		self.data = bitmap2numpy(img);
-		self.display();
 
 	def resize_near(self, size):
+		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
 		self.data = result;
 
 	def resize_linear(self, size):
+		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
 		self.data = result;
 
 	def equalize(self):
+		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.equalize(self.data[:, :, i].copy());
 		self.data = result;
 
 	def power_law(self, gamma):
+		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.power_law(self.data[:, :, i].copy(), gamma);
 		self.data = result;
 
 	def correlate(self, kernel):
+		self.push();
 		shape = [i for i in self.data.shape];
 		shape[0] += kernel.shape[0] - 1;
 		shape[1] += kernel.shape[1] - 1;
@@ -152,6 +186,7 @@ class dimage:
 		self.data = result;
 
 	def sharpen(self, alpha):
+		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
@@ -162,6 +197,7 @@ class dimage:
 		self.data = result;
 
 	def laplacian(self):
+		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
@@ -229,16 +265,26 @@ class panel_draw(wx.Panel):
 		self.s_zoom_out = 5;
 		self.status = self.s_normal;
 
+	def clear(self):
+		dc = wx.ClientDC(self);
+		dc.Clear();
+
 	def new_image(self, size):
 		assert(size[0] > 0 and size[1] > 0);
-		self.img = dimage(panel = self);
+		if self.img is None:
+			self.img = dimage(panel = self);
+		else:
+			self.img.origin();
 		self.img.create([size[0], size[1], 3]);
 		self.img.display();
 		self.frame.SetStatusText(str(self.img.scale[0]), 1);
 
 	def open_image(self, path):
 		self.path = path;
-		self.img = dimage(panel = self);
+		if self.img is None:
+			self.img = dimage(panel = self);
+		else:
+			self.img.origin();
 		self.img.load(self.path);
 		self.img.display();
 		self.frame.SetStatusText(str(self.img.scale[0]), 1);
@@ -317,24 +363,21 @@ class panel_draw(wx.Panel):
 
 		if self.status == self.s_grab:
 			self.SetCursor(self.frame.icon_grab);
-			dc = wx.ClientDC(self);
-			dc.Clear();
+			self.clear();
 			self.img.display();
 		elif self.status == self.s_zoom_in:
 			if self.img.scale[0] > 450:
 				return;
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
 			self.frame.SetStatusText(str(self.img.scale[0]), 1);
-			dc = wx.ClientDC(self);
-			dc.Clear();
+			self.clear();
 			self.img.display();
 		elif self.status == self.s_zoom_out:
 			if self.img.scale[0] < 1e-5:
 				return;
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1/1.2);
 			self.frame.SetStatusText(str(self.img.scale[0]), 1);
-			dc = wx.ClientDC(self);
-			dc.Clear();
+			self.clear();
 			self.img.display();
 		elif self.status == self.s_pencil:
 			self.img.draw_lines(self.pos_list);
@@ -361,8 +404,8 @@ class dipl_frame(wx.Frame):
 		self.SetMenuBar(self.menubar);
 		menu_file = wx.Menu();
 		self.menubar.Append(menu_file, "&File");
-#		menu_edit = wx.Menu();
-#		self.menubar.Append(menu_edit, "&Edit");
+		menu_edit = wx.Menu();
+		self.menubar.Append(menu_edit, "&Edit");
 		menu_help = wx.Menu();
 		self.menubar.Append(menu_help, "&Help");
 
@@ -392,6 +435,20 @@ class dipl_frame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.on_quit, id = menu_quit.GetId());
 		menu_file.Append(menu_quit);
 
+		#add items to menu_edit
+		menu_undo = wx.MenuItem(
+			menu_edit, id = wx.NewId(),
+			text = "&Undo\tCtrl-Z"
+		);
+		self.Bind(wx.EVT_MENU, self.on_undo, id = menu_undo.GetId());
+		menu_edit.Append(menu_undo);
+		menu_redo = wx.MenuItem(
+			menu_edit, id = wx.NewId(),
+			text = "&Redo\tCtrl-Y"
+		);
+		self.Bind(wx.EVT_MENU, self.on_redo, id = menu_redo.GetId());
+		menu_edit.Append(menu_redo);
+
 		#add items to menu_help
 		menu_about = wx.MenuItem(
 			menu_help, id = wx.NewId(),
@@ -406,8 +463,6 @@ class dipl_frame(wx.Frame):
 
 		self.choice_transform = wx.Choice(
 			tool_transform, wx.NewId(), choices = [
-				"Set Color",
-				"Pencil Style",
 				"Resize Image (Nearest Point)",
 				"Resize Image (Bilinear)",
 				"Histogram Equalization",
@@ -422,18 +477,21 @@ class dipl_frame(wx.Frame):
 		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
 		tool_transform.AddControl(self.choice_transform);
 
-		self.text_input_info1 = wx.StaticText(tool_transform, label = " red:");
+		self.text_input_info1 = wx.StaticText(tool_transform, label = " height:");
 		tool_transform.AddControl(self.text_input_info1);
-		self.text_input1 = wx.TextCtrl(tool_transform, value = "0");
+		self.text_input1 = wx.TextCtrl(tool_transform, value = "300");
 		tool_transform.AddControl(self.text_input1);
-		self.text_input_info2 = wx.StaticText(tool_transform, label = " green:");
+		self.text_input_info2 = wx.StaticText(tool_transform, label = " width:");
 		tool_transform.AddControl(self.text_input_info2);
-		self.text_input2 = wx.TextCtrl(tool_transform, value = "0");
+		self.text_input2 = wx.TextCtrl(tool_transform, value = "400");
 		tool_transform.AddControl(self.text_input2);
-		self.text_input_info3 = wx.StaticText(tool_transform, label = " blue:");
+		self.text_input_info3 = wx.StaticText(tool_transform);
 		tool_transform.AddControl(self.text_input_info3);
-		self.text_input3 = wx.TextCtrl(tool_transform, value = "0");
+		self.text_input3 = wx.TextCtrl(tool_transform);
 		tool_transform.AddControl(self.text_input3);
+
+		self.text_input_info3.Hide();
+		self.text_input3.Hide();
 
 		self.id_tool_run = wx.NewId();
 		tool_transform.AddTool(
@@ -520,6 +578,13 @@ class dipl_frame(wx.Frame):
 		self.button_color.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		tool_draw.AddControl(self.button_color);
 
+		self.id_icon_width = wx.NewId();
+		self.icon_width = wx.Image("../icon/line.png");
+		tool_draw.AddTool(
+			self.id_icon_width, "line_width", self.icon_width.ConvertToBitmap(), shortHelp = "line width"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_line_width, id = self.id_icon_width);
+
 		self.id_tool_pencil = wx.NewId();
 		self.icon_pencil = wx.Image("../icon/pencil.png");
 		self.icon_pencil.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 6);
@@ -602,8 +667,22 @@ class dipl_frame(wx.Frame):
 			return;
 		dialog = wx.FileDialog(self, message = "Save File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
 		if dialog.ShowModal() == wx.ID_OK:
-			self.panel.save_image(dialog.GetPath());
+			self.panel_draw.save_image(dialog.GetPath());
 		dialog.Destroy();
+
+	def on_undo(self, event):
+		if self.panel_draw.img is None:
+			return;
+		self.panel_draw.img.undo();
+		self.panel_draw.clear();
+		self.panel_draw.img.display();
+
+	def on_redo(self, event):
+		if self.panel_draw.img is None:
+			return;
+		self.panel_draw.img.redo();
+		self.panel_draw.clear();
+		self.panel_draw.img.display();
 
 	def on_normal(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_normal);
@@ -628,47 +707,27 @@ class dipl_frame(wx.Frame):
 			return;
 		self.panel_draw.img.zoom_fit(np.array(self.panel_draw.GetSize())[::-1]);
 		self.SetStatusText(str(self.panel_draw.img.scale[0]), 1);
-		dc = wx.ClientDC(self.panel_draw);
-		dc.Clear();
+		self.panel_draw.clear();
 		self.panel_draw.img.display();
 
 	def on_color_pick(self, event):
 		dialog = wx.ColourDialog(self);
+		dialog.GetColourData().SetColour(self.panel_draw.color);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.color = dialog.GetColourData().GetColour();
 			self.button_color.SetBackgroundColour(self.panel_draw.color);
 
+	def on_line_width(self, event):
+		#dialog = wx.NumberEntryDialog(self, message = "Please input the line width", prompt = "width:", caption = "line width", value = self.panel_draw.thick, min = 1);
+		dialog = wx.TextEntryDialog(self, message = "Please input the line width", caption = "line width", value = str(self.panel_draw.thick));
+		if dialog.ShowModal() == wx.ID_OK:
+			thick = float(dialog.GetValue());
+			if thick > 0:
+				self.panel_draw.thick = thick;
+
 	def on_choice_transform(self, event):
 		sel = self.choice_transform.GetCurrentSelection();
 		num = 0;
-
-		if sel == num:
-			self.text_input_info1.Show();
-			self.text_input_info1.SetLabel(" red:");
-			self.text_input1.Show();
-			self.text_input1.SetValue(str(self.panel_draw.color.red));
-			self.text_input_info2.Show();
-			self.text_input_info2.SetLabel(" green:");
-			self.text_input2.Show();
-			self.text_input2.SetValue(str(self.panel_draw.color.green));
-			self.text_input_info3.Show();
-			self.text_input_info3.SetLabel(" blue:");
-			self.text_input3.Show();
-			self.text_input3.SetValue(str(self.panel_draw.color.blue));
-			return;
-		num += 1;
-
-		if sel == num:
-			self.text_input_info1.Show();
-			self.text_input_info1.SetLabel(" width:");
-			self.text_input1.Show();
-			self.text_input1.SetValue(str(self.panel_draw.thick));
-			self.text_input_info2.Hide();
-			self.text_input2.Hide();
-			self.text_input_info3.Hide();
-			self.text_input3.Hide();
-			return;
-		num += 1;
 
 		if sel == num or sel == num + 1:
 			self.text_input_info1.Show();
@@ -752,32 +811,12 @@ class dipl_frame(wx.Frame):
 		num = 0;
 
 		if sel == num:
-			red = int(self.text_input1.GetValue());
-			green = int(self.text_input2.GetValue());
-			blue = int(self.text_input3.GetValue()); 
-			if red < 0 or red > 255 or green < 0 or green > 255 or blue < 0 or blue > 255:
-				return;
-			self.panel_draw.color = wx.Colour(red, green, blue);
-			self.button_color.SetBackgroundColour(self.panel_draw.color);
-			return;
-		num += 1;
-
-		if sel == num:
-			thick = int(self.text_input1.GetValue());
-			if thick <= 0:
-				return;
-			self.panel_draw.thick = thick;
-			return;
-		num += 1;
-
-		if sel == num:
 			height = int(self.text_input1.GetValue());
 			width = int(self.text_input2.GetValue());
 			if height <= 0 or width <= 0:
 				return;
 			self.panel_draw.img.resize_near(np.array((height, width)));
-			dc = wx.ClientDC(self.panel_draw);
-			dc.Clear();
+			self.panel_draw.clear();
 			self.panel_draw.img.display();
 			return;
 		num += 1;
@@ -788,8 +827,7 @@ class dipl_frame(wx.Frame):
 			if height <= 0 or width <= 0:
 				return;
 			self.panel_draw.img.resize_linear(np.array((height, width)));
-			dc = wx.ClientDC(self.panel_draw);
-			dc.Clear();
+			self.panel_draw.clear();
 			self.panel_draw.img.display();
 			return;
 		num += 1;
