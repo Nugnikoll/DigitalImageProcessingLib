@@ -105,6 +105,16 @@ class dimage:
 			self.scale = np.array([sw / w, sw / w]);
 			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
 
+	def draw_lines(self, pos_list):
+		pos_list = [i[::-1] for i in pos_list];
+		img = numpy2bitmap(self.data);
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetPen(wx.Pen(self.panel.color, self.panel.thick));
+		dc.DrawLines(pos_list);
+		self.data = bitmap2numpy(img);
+		self.display();
+
 	def resize_near(self, size):
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
@@ -273,6 +283,10 @@ class panel_draw(wx.Panel):
 				self.color = wx.Colour(color);
 				self.frame.button_color.SetBackgroundColour(self.color);
 				self.frame.SetStatusText(str(color), 0);
+		elif self.status == self.s_pencil:
+			pos = np.array(event.GetPosition())[::-1];
+			pos_img = (pos - self.img.pos) / self.img.scale;
+			self.pos_list = [pos_img];
 
 	def on_motion(self, event):
 		if self.img is None:
@@ -285,12 +299,10 @@ class panel_draw(wx.Panel):
 		if self.flag_down:
 			if self.status == self.s_pencil:
 				img = numpy2bitmap(self.img.data);
-				dc = wx.MemoryDC();
-				dc.SelectObject(img);
-				dc.SetPen(wx.Pen(self.color, self.thick));
-				dc.DrawLine(self.pos_img[::-1], pos_img[::-1]);
-				self.img.data = bitmap2numpy(img);
-				self.img.display();
+				dc = wx.ClientDC(self);
+				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
+				dc.DrawLine(self.pos[::-1], pos[::-1]);
+				self.pos_list.append(pos_img);
 			elif self.status == self.s_grab:
 				self.img.move((np.array(pos) - np.array(self.pos)));
 				self.img.display();
@@ -324,6 +336,9 @@ class panel_draw(wx.Panel):
 			dc = wx.ClientDC(self);
 			dc.Clear();
 			self.img.display();
+		elif self.status == self.s_pencil:
+			self.img.draw_lines(self.pos_list);
+			self.img.display()
 
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
