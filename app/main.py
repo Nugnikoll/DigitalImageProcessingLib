@@ -63,20 +63,20 @@ class dimage:
 	def push(self):
 		if not self.data is None:
 			self.record = [];
-			self.backup.append(self.data);
+			self.backup.append((self.data, self.alpha));
 
 	def pop(self):
-		self.data = self.backup.pop();
+		self.data, self.alpha = self.backup.pop();
 
 	def undo(self):
 		if len(self.backup) != 0:
-			self.record.append(self.data);
+			self.record.append((self.data, self.alpha));
 			self.pop();
 
 	def redo(self):
 		if len(self.record) != 0:
-			self.backup.append(self.data);
-			self.data = self.record.pop();
+			self.backup.append((self.data, self.alpha));
+			self.data, self.alpha = self.record.pop();
 
 	def create(self, size):
 		self.push();
@@ -155,8 +155,9 @@ class dimage:
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
+			result[:, :, i] = jpeg.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1])); 
 		self.data = result;
+		self.alpha = jpeg.resize_near(self.alpha, int(size[0]), int(size[1]));
 
 	def resize_linear(self, size):
 		self.push();
@@ -164,6 +165,7 @@ class dimage:
 		for i in range(self.data.shape[2]):
 			result[:, :, i] = jpeg.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
 		self.data = result;
+		self.alpha = jpeg.resize_linear(self.alpha, int(size[0]), int(size[1]));
 
 	def equalize(self):
 		self.push();
