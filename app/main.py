@@ -272,9 +272,31 @@ class panel_draw(wx.Panel):
 		self.s_zoom_out = 5;
 		self.status = self.s_normal;
 
+		data = np.array([[[20], [100]],[[100], [20]]]);
+		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
+		data = np.tile(data, (50, 85, 1));
+		self.img_background = numpy2bitmap(data);
+
 	def clear(self):
 		dc = wx.ClientDC(self);
-		dc.Clear();
+		
+		if self.img is None:
+			dc.DrawBitmap(self.img_background, (0, 0));
+		else:
+			sw, sh = self.GetSize();
+			h = self.img.pos[0] + m.ceil(self.img.data.shape[0] * self.img.scale[0]); 
+			w = self.img.pos[1] + m.ceil(self.img.data.shape[1] * self.img.scale[1]);
+			dc.SetClippingRegion(0, 0, self.img.pos[1], sh);
+			dc.DrawBitmap(self.img_background, (0, 0));
+			dc.DestroyClippingRegion();
+			dc.SetClippingRegion(0, 0, sw, self.img.pos[0]);
+			dc.DrawBitmap(self.img_background, (0, 0));
+			dc.DestroyClippingRegion();
+			dc.SetClippingRegion(w, 0, sw - w, sh);
+			dc.DrawBitmap(self.img_background, (0, 0));
+			dc.DestroyClippingRegion();
+			dc.SetClippingRegion(0, h, sw, sh - h);
+			dc.DrawBitmap(self.img_background, (0, 0));
 
 	def new_image(self, size):
 		assert(size[0] > 0 and size[1] > 0);
@@ -318,6 +340,7 @@ class panel_draw(wx.Panel):
 			self.SetCursor(self.frame.icon_zoom_out);
 
 	def on_paint(self, event):
+		self.clear();
 		if not (self.img is None):
 			self.img.display();
 
@@ -363,6 +386,7 @@ class panel_draw(wx.Panel):
 				self.pos_list.append(pos_img);
 			elif self.status == self.s_grab:
 				self.img.move((np.array(pos) - np.array(self.pos)));
+				self.clear();
 				self.img.display();
 		self.pos = pos;
 		self.pos_img = pos_img;
@@ -373,11 +397,7 @@ class panel_draw(wx.Panel):
 		if self.img is None:
 			return;
 
-		if self.status == self.s_grab:
-			self.SetCursor(self.frame.icon_grab);
-			self.clear();
-			self.img.display();
-		elif self.status == self.s_zoom_in:
+		if self.status == self.s_zoom_in:
 			if self.img.scale[0] > 450:
 				return;
 			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
