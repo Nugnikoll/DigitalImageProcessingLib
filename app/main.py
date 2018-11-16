@@ -87,34 +87,24 @@ class dimage:
 
 	def display(self):
 		dc = wx.ClientDC(self.panel);
+
+		zero = np.array([0, 0]);
 		size = np.array(self.panel.GetSize())[::-1];
-
 		shape = np.array(self.data.shape);
-		pos1 = np.maximum(np.floor(-self.pos / self.scale).astype(np.int32), np.array([0, 0]));
-		pos2 = np.minimum(np.ceil((size - self.pos) / self.scale).astype(np.int32), shape[:2]);
-		#print(self.scale);
-		#print("pos1", pos1, "pos2", pos2);
-		if (pos2 - pos1 <= 0).any():
+
+		pos = self.pos.astype(np.int32);
+		pos1 = np.maximum(zero, pos);
+		pos2 = np.minimum(size, np.floor(shape[:2] * self.scale + pos).astype(np.int32));
+
+		shape[:2] = pos2 - pos1;
+		if (shape[:2] <= zero).any():
 			return;
+		pos = np.minimum(pos, np.array([0, 0]));
 
-#		pos3 = np.minimum(np.array([0, 0]), self.pos.astype(np.int32));
-#		pos4 = np.minimum(size, np.ceil(shape[:2] * self.scale + self.pos));
-
-#		pos3 = np.minimum(np.array([0, 0]), self.pos.astype(np.int32));
-#		pos4 = np.ceil((pos2 - pos1) * self.scale) + pos3;
-
-		pos3 = np.floor(pos1 * self.scale + self.pos).astype(np.int32);
-		pos4 = np.ceil(pos2 * self.scale + self.pos).astype(np.int32);
-
-		#print("pos3", pos3, "pos4", pos4);
-		shape2 = shape;
-		shape2[:2] = pos4 - pos3;
-
-		data = np.empty(shape2, dtype = np.int32);
+		data = np.empty(shape, dtype = np.int32);
 		for i in range(shape[2]):
-			data[:, :, i] = jpeg.resize_near(self.data[pos1[0]: pos2[0], pos1[1]: pos2[1], i].copy(), int(shape2[0]), int(shape2[1]));
-		dc.DrawBitmap(numpy2bitmap(data), pos3[1], pos3[0]);
-		
+			data[:, :, i] = jpeg.map_linear(self.data[:, :, i].copy(), int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
 
 	def move(self, distance):
 		self.pos += distance;

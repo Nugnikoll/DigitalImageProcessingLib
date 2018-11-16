@@ -318,6 +318,18 @@ void power_law(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, double g
 	}
 }
 
+void map_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w, int y, int x, double scale){
+	*m1 = h;
+	*m2 = w;
+	*ptrm = new int[h * w];
+
+	for(int i = 0; i != h; ++i){
+		for(int j = 0; j != w; ++j){
+			(*ptrm)[i * w + j] = ptri[int(round((i + 0.5 - y) / scale - 0.5) * i2 + round((j + 0.5 - x) / scale - 0.5))];
+		}
+	}
+}
+
 void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w){
 	*m1 = h;
 	*m2 = w;
