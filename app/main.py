@@ -434,6 +434,12 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_MENU, self.on_save, id = menu_save.GetId());
 		menu_file.Append(menu_save);
+		menu_script = wx.MenuItem(
+			menu_file, id = wx.NewId(),
+			text = "&Load Script\tCtrl-R"
+		);
+		self.Bind(wx.EVT_MENU, self.on_script, id = menu_script.GetId());
+		menu_file.Append(menu_script);
 		menu_quit = wx.MenuItem(
 			menu_file, id = wx.NewId(),
 			text = "&Quit\tAlt-F4"
@@ -680,6 +686,20 @@ class dipl_frame(wx.Frame):
 		dialog = wx.FileDialog(self, message = "Save File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.save_image(dialog.GetPath());
+		dialog.Destroy();
+
+	def on_script(self, event):
+		dialog = wx.FileDialog(self, message = "Load Python Script", defaultDir = "../", wildcard = "Python Scripts(*.py)|*.py", style = wx.FD_OPEN);
+		if dialog.ShowModal() == wx.ID_OK:
+			with open(dialog.GetPath()) as fobj:
+				script = fobj.read();
+			try:
+				exec(script);
+			except:
+				info = sys.exc_info();
+				print("File \"%s\", line %d, column %d" % (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2]));
+				print("    " + info[1].args[1][3])
+				print(info[1].args[0]);
 		dialog.Destroy();
 
 	def on_undo(self, event):
