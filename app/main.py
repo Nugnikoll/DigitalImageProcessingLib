@@ -112,10 +112,7 @@ class dimage:
 			return;
 		pos = np.minimum(pos, np.array([0, 0]));
 
-		data = np.empty(shape, dtype = np.int32);
-		for i in range(shape[2]):
-			data[:, :, i] = jpeg.map_linear(self.data[:, :, i].copy(), int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = np.empty(shape, dtype = np.int32);
+		data = jpeg.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = jpeg.map_linear(self.alpha[:, :], int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
@@ -402,6 +399,8 @@ class panel_draw(wx.Panel):
 		if self.img is None:
 			return;
 
+		if self.status == self.s_grab:
+			self.SetCursor(self.frame.icon_grab);
 		if self.status == self.s_zoom_in:
 			if self.img.scale[0] > 450:
 				return;

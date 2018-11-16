@@ -330,6 +330,22 @@ void map_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, 
 	}
 }
 
+void map_linear3(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3, int h, int w, int y, int x, double scale){
+	*m1 = h;
+	*m2 = w;
+	*m3 = i3;
+	*ptrm = new int[h * w * i3];
+
+	for(int i = 0; i != h; ++i){
+		for(int j = 0; j != w; ++j){
+			for(int k = 0; k != i3; ++k){
+				(*ptrm)[(i * w + j) * i3 + k]
+					= ptri[(int(round((i + 0.5 - y) / scale - 0.5) * i2 + round((j + 0.5 - x) / scale - 0.5))) * i3 + k];
+			}
+		}
+	}
+}
+
 void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w){
 	*m1 = h;
 	*m2 = w;
