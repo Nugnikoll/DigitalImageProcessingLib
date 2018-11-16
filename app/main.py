@@ -17,17 +17,15 @@ import jpeg;
 
 def img2numpy(wximg):
 	buf = wximg.GetDataBuffer();
-	data = np.frombuffer(buf, dtype="uint8");
+	data = np.array(buf, dtype = np.int32);
 	data = data.reshape((wximg.GetHeight(), wximg.GetWidth(), -1));
-	data = data.astype(np.int32);
 	return data;
 
 def bitmap2numpy(wximg):
 	img = wximg.ConvertToImage();
 	buf = img.GetDataBuffer();
-	data = np.frombuffer(buf, dtype="uint8");
+	data = np.array(buf, dtype = np.int32);
 	data = data.reshape((img.GetHeight(), img.GetWidth(), -1));
-	data = data.astype(np.int32);
 	return data;
 
 def numpy2img(data):
