@@ -372,7 +372,6 @@ class panel_draw(wx.Panel):
 
 		if self.flag_down:
 			if self.status == self.s_pencil:
-				img = numpy2bitmap(self.img.data);
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
