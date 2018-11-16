@@ -6,6 +6,7 @@ import sys;
 import os;
 import time;
 import copy;
+import math as m;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
@@ -352,6 +353,11 @@ class panel_draw(wx.Panel):
 			if self.status == self.s_pencil:
 				img = numpy2bitmap(self.img.data);
 				dc = wx.ClientDC(self);
+				dc.SetClippingRegion(
+					self.img.pos[1], self.img.pos[0],
+					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
+					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+				);
 				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
 				self.pos_list.append(pos_img);
