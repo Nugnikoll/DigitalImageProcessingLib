@@ -19,7 +19,14 @@ def img2numpy(wximg):
 	buf = wximg.GetDataBuffer();
 	data = np.array(buf, dtype = np.int32);
 	data = data.reshape((wximg.GetHeight(), wximg.GetWidth(), -1));
-	return data;
+	if wximg.HasAlpha():
+		buf = wximg.GetAlpha();
+		alpha = np.array(buf, dtype = np.int32);
+		alpha = alpha.reshape((wximg.GetHeight(), wximg.GetWidth()));
+	else:
+		alpha = np.empty((wximg.GetHeight(), wximg.GetWidth()), dtype = np.int32);
+		alpha[:] = 255;
+	return data, alpha;
 
 def bitmap2numpy(wximg):
 	img = wximg.ConvertToImage();
@@ -28,9 +35,10 @@ def bitmap2numpy(wximg):
 	data = data.reshape((img.GetHeight(), img.GetWidth(), -1));
 	return data;
 
-def numpy2img(data):
+def numpy2img(data, alpha):
 	buf = data.ravel().astype(np.uint8).tobytes();
-	wximg = wx.Image(data.shape[1], data.shape[0], buf);
+	buf_alpha = alpha.ravel().astype(np.uint8).tobytes();
+	wximg = wx.Image(data.shape[1], data.shape[0], buf, buf_alpha);
 	return wximg;
 
 def numpy2bitmap(data):
@@ -39,8 +47,9 @@ def numpy2bitmap(data):
 	return wximg;
 
 class dimage:
-	def __init__(self, data = None, panel = None):
+	def __init__(self, panel = None, data = None, alpha = None):
 		self.data = data;
+		self.alpha = alpha;
 		self.pos = np.array([0, 0], dtype = np.int32);
 		self.scale = np.array([1, 1], dtype = np.float64);
 		self.panel = panel;
@@ -48,7 +57,7 @@ class dimage:
 		self.record = [];
 
 	def copy(self):
-		img = dimage(self.data.copy(), self.panel);
+		img = dimage(self.panel, self.data.copy(), self.alpha.copy());
 		return img;
 
 	def push(self):
@@ -73,13 +82,15 @@ class dimage:
 		self.push();
 		self.data = np.empty(size, dtype = np.int32);
 		self.data[:] = 255;
+		self.alpha = np.empty(size[:2], dtype = np.int32);
+		self.alpha[:] = 255;
 
 	def load(self, filename):
 		self.push();
-		self.data = img2numpy(wx.Image(filename));
+		self.data, self.alpha = img2numpy(wx.Image(filename));
 
 	def save(self, filename):
-		numpy2img(self.data).SaveFile(filename);
+		numpy2img(self.data, self.alpha).SaveFile(filename);
 
 	def origin(self):
 		self.pos = np.array([0, 0], dtype = np.int32);
@@ -104,6 +115,10 @@ class dimage:
 		data = np.empty(shape, dtype = np.int32);
 		for i in range(shape[2]):
 			data[:, :, i] = jpeg.map_linear(self.data[:, :, i].copy(), int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = np.empty(shape, dtype = np.int32);
+		alpha = jpeg.map_linear(self.alpha[:, :], int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
+		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
 
 	def move(self, distance):
@@ -238,6 +253,8 @@ class panel_draw(wx.Panel):
 			self.frame = self.frame.GetParent();
 		self.SetBackgroundColour(wx.BLACK);
 
+		self.SetCursor(self.frame.icon_normal);
+
 		self.Bind(wx.EVT_PAINT, self.on_paint);
 		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
 		self.Bind(wx.EVT_LEFT_UP, self.on_leftup);
@@ -263,6 +280,7 @@ class panel_draw(wx.Panel):
 		data = np.array([[[20], [100]],[[100], [20]]]);
 		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
 		data = np.tile(data, (50, 85, 1));
+		self.data_background = data;
 		self.img_background = numpy2bitmap(data);
 
 	def clear(self):
@@ -540,6 +558,8 @@ class dipl_frame(wx.Frame):
 
 		self.id_tool_normal = wx.NewId();
 		self.icon_normal = wx.Image("../icon/default.png");
+		self.icon_normal.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 6);
+		self.icon_normal.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 2);
 		tool_mouse.AddTool(
 			self.id_tool_normal, "normal", self.icon_normal.ConvertToBitmap(), shortHelp = "normal"
 		);
