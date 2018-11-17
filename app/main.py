@@ -7,6 +7,7 @@ import os;
 import time;
 import copy;
 import math as m;
+import traceback;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
@@ -113,7 +114,7 @@ class dimage:
 		pos = np.minimum(pos, np.array([0, 0]));
 
 		data = jpeg.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = jpeg.map_linear(self.alpha[:, :], int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = jpeg.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
@@ -141,6 +142,7 @@ class dimage:
 	def draw_lines(self, pos_list):
 		self.push();
 		pos_list = [i[::-1] for i in pos_list];
+
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
@@ -150,6 +152,30 @@ class dimage:
 		else:
 			dc.DrawPoint(pos_list[0]);
 		self.data = bitmap2numpy(img);
+
+		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
+		if len(pos_list) > 1:
+			dc.DrawLines(pos_list);
+		else:
+			dc.DrawPoint(pos_list[0]);
+		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+
+	def erase_lines(self, pos_list):
+		self.push();
+		pos_list = [i[::-1] for i in pos_list];
+
+		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
+		if len(pos_list) > 1:
+			dc.DrawLines(pos_list);
+		else:
+			dc.DrawPoint(pos_list[0]);
+		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
 	def resize_near(self, size):
 		self.push();
@@ -271,9 +297,10 @@ class panel_draw(wx.Panel):
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
-		self.s_picker = 3;
-		self.s_zoom_in = 4;
-		self.s_zoom_out = 5;
+		self.s_eraser = 3;
+		self.s_picker = 4;
+		self.s_zoom_in = 5;
+		self.s_zoom_out = 6;
 		self.status = self.s_normal;
 
 		data = np.array([[[20], [100]],[[100], [20]]]);
@@ -337,6 +364,8 @@ class panel_draw(wx.Panel):
 		elif status == self.s_pencil:
 			#self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
 			self.SetCursor(self.frame.icon_pencil);
+		elif status == self.s_eraser:
+			self.SetCursor(self.frame.icon_eraser);
 		elif status == self.s_picker:
 			self.SetCursor(self.frame.icon_picker);
 		elif status == self.s_zoom_in:
@@ -364,7 +393,7 @@ class panel_draw(wx.Panel):
 				self.color = wx.Colour(color);
 				self.frame.button_color.SetBackgroundColour(self.color);
 				self.frame.SetStatusText(str(color), 0);
-		elif self.status == self.s_pencil:
+		elif self.status == self.s_pencil or self.status == self.s_eraser:
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.pos_list = [pos_img];
@@ -379,6 +408,16 @@ class panel_draw(wx.Panel):
 
 		if self.flag_down:
 			if self.status == self.s_pencil:
+				dc = wx.ClientDC(self);
+				dc.SetClippingRegion(
+					self.img.pos[1], self.img.pos[0],
+					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
+					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+				);
+				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
+				dc.DrawLine(self.pos[::-1], pos[::-1]);
+				self.pos_list.append(pos_img);
+			elif self.status == self.s_eraser:
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
@@ -419,7 +458,35 @@ class panel_draw(wx.Panel):
 			self.img.display();
 		elif self.status == self.s_pencil:
 			self.img.draw_lines(self.pos_list);
-			self.img.display()
+			self.img.display();
+		elif self.status == self.s_eraser:
+			self.img.erase_lines(self.pos_list);
+			self.img.display();
+
+class panel_info(wx.Panel):
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_info, self).__init__(parent = parent, size = size);
+		self.frame = parent;
+		while type(self.frame) != dipl_frame:
+			self.frame = self.frame.GetParent();
+		self.SetBackgroundColour(wx.BLACK);
+
+		sizer_base = wx.BoxSizer(wx.VERTICAL);
+		self.SetSizer(sizer_base);
+
+		self.text_term = wx.TextCtrl(self, wx.NewId(), size = (300, 200), style = wx.TE_READONLY | wx.TE_MULTILINE | wx.HSCROLL);
+		self.text_term.SetBackgroundColour(wx.Colour(20, 20, 20));
+		self.text_term.SetForegroundColour(wx.Colour(210, 210, 210));
+		sizer_base.Add(self.text_term, 1, wx.CENTER | wx.EXPAND, 0);
+		self.text_input = wx.TextCtrl(self, wx.NewId(), size = (300, -1), style = wx.TE_PROCESS_ENTER);
+		self.text_input.SetBackgroundColour(wx.Colour(20, 20, 20));
+		self.text_input.SetForegroundColour(wx.Colour(210, 210, 210));
+		self.text_input.Bind(wx.EVT_TEXT_ENTER, self.on_enter);
+		sizer_base.Add(self.text_input, 0, wx.CENTER | wx.EXPAND, 0);
+
+	def on_enter(self, event):
+		self.text_term.AppendText(">>" + self.text_input.GetValue() + "\n");
+		self.frame.execute(self.text_input.GetValue());
 
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
@@ -444,6 +511,8 @@ class dipl_frame(wx.Frame):
 		self.menubar.Append(menu_file, "&File");
 		menu_edit = wx.Menu();
 		self.menubar.Append(menu_edit, "&Edit");
+		menu_window = wx.Menu();
+		self.menubar.Append(menu_window, "&Window");
 		menu_help = wx.Menu();
 		self.menubar.Append(menu_help, "&Help");
 
@@ -493,6 +562,18 @@ class dipl_frame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.on_redo, id = menu_redo.GetId());
 		menu_edit.Append(menu_redo);
 
+		#add items to menu_window
+		str_menu_window = ["&Mouse Toolbar", "&Transform Toolbar", "&Drawing Toolbar", "Terminal &Panel"];
+		self.list_menu_window = [];
+		for item in str_menu_window:
+			menu = wx.MenuItem(
+				menu_window, id = wx.NewId(),
+				text = item
+			);
+			self.Bind(wx.EVT_MENU, self.on_menu_window, id = menu.GetId());
+			menu_window.Append(menu);
+			self.list_menu_window.append(menu);
+
 		#add items to menu_help
 		menu_about = wx.MenuItem(
 			menu_help, id = wx.NewId(),
@@ -502,11 +583,11 @@ class dipl_frame(wx.Frame):
 		menu_help.Append(menu_about);
 
 		#create a toolbar
-		tool_transform = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
-		tool_transform.SetToolBitmapSize(wx.Size(40,40));
+		self.tool_transform = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		self.tool_transform.SetToolBitmapSize(wx.Size(40,40));
 
 		self.choice_transform = wx.Choice(
-			tool_transform, wx.NewId(), choices = [
+			self.tool_transform, wx.NewId(), choices = [
 				"Resize Image (Nearest Point)",
 				"Resize Image (Bilinear)",
 				"Histogram Equalization",
@@ -520,33 +601,33 @@ class dipl_frame(wx.Frame):
 		);
 		self.choice_transform.SetSelection(0);
 		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
-		tool_transform.AddControl(self.choice_transform);
+		self.tool_transform.AddControl(self.choice_transform);
 
-		self.text_input_info1 = wx.StaticText(tool_transform, label = " height:");
-		tool_transform.AddControl(self.text_input_info1);
-		self.text_input1 = wx.TextCtrl(tool_transform, value = "300");
-		tool_transform.AddControl(self.text_input1);
-		self.text_input_info2 = wx.StaticText(tool_transform, label = " width:");
-		tool_transform.AddControl(self.text_input_info2);
-		self.text_input2 = wx.TextCtrl(tool_transform, value = "400");
-		tool_transform.AddControl(self.text_input2);
-		self.text_input_info3 = wx.StaticText(tool_transform);
-		tool_transform.AddControl(self.text_input_info3);
-		self.text_input3 = wx.TextCtrl(tool_transform);
-		tool_transform.AddControl(self.text_input3);
+		self.text_input_info1 = wx.StaticText(self.tool_transform, label = " height:");
+		self.tool_transform.AddControl(self.text_input_info1);
+		self.text_input1 = wx.TextCtrl(self.tool_transform, value = "300");
+		self.tool_transform.AddControl(self.text_input1);
+		self.text_input_info2 = wx.StaticText(self.tool_transform, label = " width:");
+		self.tool_transform.AddControl(self.text_input_info2);
+		self.text_input2 = wx.TextCtrl(self.tool_transform, value = "400");
+		self.tool_transform.AddControl(self.text_input2);
+		self.text_input_info3 = wx.StaticText(self.tool_transform);
+		self.tool_transform.AddControl(self.text_input_info3);
+		self.text_input3 = wx.TextCtrl(self.tool_transform);
+		self.tool_transform.AddControl(self.text_input3);
 
 		self.text_input_info3.Hide();
 		self.text_input3.Hide();
 
 		self.id_tool_run = wx.NewId();
-		tool_transform.AddTool(
+		self.tool_transform.AddTool(
 			self.id_tool_run, "transform", wx.Bitmap("../icon/right_arrow.png"), shortHelp = "transform"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_transform, id = self.id_tool_run);
 
-		tool_transform.Realize();
+		self.tool_transform.Realize();
 		self.manager.AddPane(
-			tool_transform, aui.AuiPaneInfo().
+			self.tool_transform, aui.AuiPaneInfo().
 			Name("tool_transform").Caption("tool transform").
 			ToolbarPane().Top().Row(1).
 			LeftDockable(False).RightDockable(False).
@@ -554,14 +635,14 @@ class dipl_frame(wx.Frame):
 		);
 
 		#create a toolbar
-		tool_mouse = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
-		tool_mouse.SetToolBitmapSize(wx.Size(40,40));
+		self.tool_mouse = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		self.tool_mouse.SetToolBitmapSize(wx.Size(40,40));
 
 		self.id_tool_normal = wx.NewId();
 		self.icon_normal = wx.Image("../icon/default.png");
 		self.icon_normal.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 6);
 		self.icon_normal.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 2);
-		tool_mouse.AddTool(
+		self.tool_mouse.AddTool(
 			self.id_tool_normal, "normal", self.icon_normal.ConvertToBitmap(), shortHelp = "normal"
 		);
 		self.icon_normal = wx.Cursor(self.icon_normal);
@@ -574,7 +655,7 @@ class dipl_frame(wx.Frame):
 		self.icon_grabbing = wx.Image("../icon/grabbing.png");
 		self.icon_grabbing.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 12);
 		self.icon_grabbing.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 14);
-		tool_mouse.AddTool(
+		self.tool_mouse.AddTool(
 			self.id_tool_grab, "grab", self.icon_grab.ConvertToBitmap(), shortHelp = "grab"
 		);
 		self.icon_grab = wx.Cursor(self.icon_grab);
@@ -585,7 +666,7 @@ class dipl_frame(wx.Frame):
 		self.icon_zoom_in = wx.Image("../icon/zoom-in.png");
 		self.icon_zoom_in.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 10);
 		self.icon_zoom_in.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 9);
-		tool_mouse.AddTool(
+		self.tool_mouse.AddTool(
 			self.id_zoom_in, "zoom_in", self.icon_zoom_in.ConvertToBitmap(), shortHelp = "zoom in"
 		);
 		self.icon_zoom_in = wx.Cursor(self.icon_zoom_in);
@@ -595,21 +676,21 @@ class dipl_frame(wx.Frame):
 		self.icon_zoom_out = wx.Image("../icon/zoom-out.png");
 		self.icon_zoom_out.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 10);
 		self.icon_zoom_out.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 9);
-		tool_mouse.AddTool(
+		self.tool_mouse.AddTool(
 			self.id_zoom_out, "zoom_out", self.icon_zoom_out.ConvertToBitmap(), shortHelp = "zoom out"
 		);
 		self.icon_zoom_out = wx.Cursor(self.icon_zoom_out);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_out, id = self.id_zoom_out);
 
 		self.id_zoom_fit = wx.NewId();
-		tool_mouse.AddTool(
+		self.tool_mouse.AddTool(
 			self.id_zoom_fit, "zoom_fit", wx.Bitmap("../icon/square_box.png"), shortHelp = "zoom fit"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_zoom_fit, id = self.id_zoom_fit);
 
-		tool_mouse.Realize();
+		self.tool_mouse.Realize();
 		self.manager.AddPane(
-			tool_mouse, aui.AuiPaneInfo().
+			self.tool_mouse, aui.AuiPaneInfo().
 			Name("tool_mouse").Caption("tool mouse").
 			ToolbarPane().Top().Row(1).
 			LeftDockable(False).RightDockable(False).
@@ -642,6 +723,16 @@ class dipl_frame(wx.Frame):
 		self.icon_pencil = wx.Cursor(self.icon_pencil)
 		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
 
+		self.id_tool_eraser = wx.NewId();
+		self.icon_eraser = wx.Image("../icon/eraser.png");
+		self.icon_eraser.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 3);
+		self.icon_eraser.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 18);
+		tool_draw.AddTool(
+			self.id_tool_eraser, "eraser", self.icon_eraser.ConvertToBitmap(), shortHelp = "eraser"
+		);
+		self.icon_eraser = wx.Cursor(self.icon_eraser)
+		self.Bind(wx.EVT_TOOL, self.on_eraser, id = self.id_tool_eraser);
+
 		self.id_tool_picker = wx.NewId();
 		self.icon_picker = wx.Image("../icon/picker.png");
 		self.icon_picker.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 5);
@@ -665,6 +756,15 @@ class dipl_frame(wx.Frame):
 		self.panel_draw = panel_draw(self, size = (1000, 600));
 		self.manager.AddPane(self.panel_draw, aui.AuiPaneInfo().Name("panel draw").CenterPane());
 
+		#create a panel to show infomation
+		self.panel_info = panel_info(self);
+		self.manager.AddPane(
+			self.panel_info,
+			aui.AuiPaneInfo().Name("panel_info").Caption("terminal").Right()
+				.FloatingSize(self.panel_info.GetBestSize()).CloseButton(True)
+				.MinSize((300, 100))
+		);	
+
 		#add a status bar
 		self.status_bar = wx.StatusBar(self, wx.NewId());
 		self.status_bar.SetFieldsCount(3);
@@ -678,10 +778,14 @@ class dipl_frame(wx.Frame):
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
-		self.s_picker = 3;
-		self.s_zoom_in = 4;
-		self.s_zoom_out = 5;
-		self.status = self.s_normal;
+		self.s_eraser = 3;
+		self.s_picker = 4;
+		self.s_zoom_in = 5;
+		self.s_zoom_out = 6;
+
+		#define a function which prints strings on text_term
+		global _print;
+		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
 
 		self.net = cnn();
 		with open("cnn.dat", "rb") as fobj:
@@ -692,6 +796,25 @@ class dipl_frame(wx.Frame):
 		self.manager.UnInit();
 		del self.manager;
 		return super(dipl_frame, self).Destroy();
+
+	def print_term(self, text):
+		self.panel_info.text_term.AppendText(text);
+
+	def execute(self, script):
+		frame = self;
+		class io_term:
+			def write(self, text):
+				frame.print_term(text);
+		buf = io_term();
+		out_save = sys.stdout;
+		sys.stdout = buf;
+		try:
+			exec(script);
+			sys.stdout = out_save;
+		except:
+			traceback.print_exc(limit = 10, file = buf);
+		finally:
+			sys.stdout = out_save;
 
 	def on_quit(self, event):
 		self.Close();
@@ -709,31 +832,34 @@ class dipl_frame(wx.Frame):
 		dialog.Destroy();
 
 	def on_open(self, event):
-		dialog = wx.FileDialog(self, message = "Open File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
+		if not hasattr(self, "path_image"):
+			self.path_image = "../img/";
+		dialog = wx.FileDialog(self, message = "Open File", defaultDir = self.path_image, wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.open_image(dialog.GetPath());
+		self.path_image = dialog.GetDirectory();
 		dialog.Destroy();
 
 	def on_save(self, event):
 		if self.panel_draw.img is None:
 			return;
-		dialog = wx.FileDialog(self, message = "Save File", defaultDir = "../img/", wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
+		if not hasattr(self, "path_image"):
+			self.path_image = "../img/";
+		dialog = wx.FileDialog(self, message = "Save File", defaultDir = self.path_image, wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.save_image(dialog.GetPath());
+		self.path_image = dialog.GetDirectory();
 		dialog.Destroy();
 
 	def on_script(self, event):
-		dialog = wx.FileDialog(self, message = "Load Python Script", defaultDir = "../", wildcard = "Python Scripts(*.py)|*.py", style = wx.FD_OPEN);
+		if not hasattr(self, "path_script"):
+			self.path_script = "../sample/";
+		dialog = wx.FileDialog(self, message = "Load Python Script", defaultDir = self.path_script, wildcard = "Python Scripts(*.py)|*.py", style = wx.FD_OPEN);
 		if dialog.ShowModal() == wx.ID_OK:
 			with open(dialog.GetPath()) as fobj:
 				script = fobj.read();
-			try:
-				exec(script);
-			except:
-				info = sys.exc_info();
-				print("File \"%s\", line %d, column %d" % (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2]));
-				print("    " + info[1].args[1][3])
-				print(info[1].args[0]);
+			self.execute(script);
+		self.path_script = dialog.GetDirectory();
 		dialog.Destroy();
 
 	def on_undo(self, event):
@@ -750,6 +876,43 @@ class dipl_frame(wx.Frame):
 		self.panel_draw.clear();
 		self.panel_draw.img.display();
 
+	def on_menu_window(self, event):
+		mid = event.GetId();
+		num = 0;
+		if mid == self.list_menu_window[num].GetId():
+			pane = self.manager.GetPane("tool_mouse");
+			if pane.IsShown():
+				pane.Hide();
+			else:
+				pane.Show();
+		num += 1;
+
+		if mid == self.list_menu_window[num].GetId():
+			pane = self.manager.GetPane("tool_transform");
+			if pane.IsShown():
+				pane.Hide();
+			else:
+				pane.Show();
+		num += 1;
+
+		if mid == self.list_menu_window[num].GetId():
+			pane = self.manager.GetPane("tool_draw");
+			if pane.IsShown():
+				pane.Hide();
+			else:
+				pane.Show();
+		num += 1;
+
+		if mid == self.list_menu_window[num].GetId():
+			pane = self.manager.GetPane("panel_info");
+			if pane.IsShown():
+				pane.Hide();
+			else:
+				pane.Show();
+		num += 1;
+
+		self.manager.Update();
+
 	def on_normal(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_normal);
 
@@ -758,6 +921,9 @@ class dipl_frame(wx.Frame):
 
 	def on_pencil(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_pencil);
+
+	def on_eraser(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_eraser);
 
 	def on_picker(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_picker);
@@ -955,7 +1121,9 @@ class dipl_frame(wx.Frame):
 		if sel == num:
 			img = self.panel_draw.img.copy();
 			img.resize_linear((28, 28));
-			data = 1 - (np.mean(img.data, axis = 2) / 255);
+			data = (np.mean(img.data, axis = 2) / 255);
+			if np.mean(data) > 0.5:
+				data = 1 - data;
 			data = data.reshape((1, 1, 28, 28));
 			data = Variable(torch.Tensor(data));
 			result = self.net(data).reshape(10);
