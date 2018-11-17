@@ -113,7 +113,7 @@ class dimage:
 		pos = np.minimum(pos, np.array([0, 0]));
 
 		data = jpeg.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = jpeg.map_linear(self.alpha[:, :], int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = jpeg.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
@@ -141,6 +141,7 @@ class dimage:
 	def draw_lines(self, pos_list):
 		self.push();
 		pos_list = [i[::-1] for i in pos_list];
+
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
@@ -150,6 +151,16 @@ class dimage:
 		else:
 			dc.DrawPoint(pos_list[0]);
 		self.data = bitmap2numpy(img);
+
+		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
+		if len(pos_list) > 1:
+			dc.DrawLines(pos_list);
+		else:
+			dc.DrawPoint(pos_list[0]);
+		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
 	def resize_near(self, size):
 		self.push();
