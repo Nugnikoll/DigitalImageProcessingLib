@@ -403,7 +403,7 @@ class panel_draw(wx.Panel):
 			return;
 
 		pos = np.array(event.GetPosition())[::-1];
-		pos_img = (pos - self.img.pos) / self.img.scale;
+		pos_img = np.floor((pos - self.img.pos) / self.img.scale);
 		self.frame.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
 
 		if self.flag_down:
