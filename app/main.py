@@ -421,6 +421,31 @@ class panel_draw(wx.Panel):
 			self.img.draw_lines(self.pos_list);
 			self.img.display()
 
+class panel_info(wx.Panel):
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_info, self).__init__(parent = parent, size = size);
+		self.frame = parent;
+		while type(self.frame) != dipl_frame:
+			self.frame = self.frame.GetParent();
+		self.SetBackgroundColour(wx.BLACK);
+
+		sizer_base = wx.BoxSizer(wx.VERTICAL);
+		self.SetSizer(sizer_base);
+
+		self.text_term = wx.TextCtrl(self, wx.NewId(), size = (300, 200), style = wx.TE_READONLY | wx.TE_MULTILINE | wx.HSCROLL);
+		self.text_term.SetBackgroundColour(wx.Colour(20, 20, 20));
+		self.text_term.SetForegroundColour(wx.Colour(210, 210, 210));
+		sizer_base.Add(self.text_term, 1, wx.CENTER | wx.EXPAND, 0);
+		self.text_input = wx.TextCtrl(self, wx.NewId(), size = (300, -1), style = wx.TE_PROCESS_ENTER);
+		self.text_input.SetBackgroundColour(wx.Colour(20, 20, 20));
+		self.text_input.SetForegroundColour(wx.Colour(210, 210, 210));
+		self.text_input.Bind(wx.EVT_TEXT_ENTER, self.on_enter);
+		sizer_base.Add(self.text_input, 0, wx.CENTER | wx.EXPAND, 0);
+
+	def on_enter(self, event):
+		self.text_term.AppendText(">>" + self.text_input.GetValue() + "\n");
+		self.frame.execute(self.text_input.GetValue());
+
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
 		wx.Frame.__init__(self, parent, id, title, pos, size, style);
@@ -665,6 +690,15 @@ class dipl_frame(wx.Frame):
 		self.panel_draw = panel_draw(self, size = (1000, 600));
 		self.manager.AddPane(self.panel_draw, aui.AuiPaneInfo().Name("panel draw").CenterPane());
 
+		#create a panel to show infomation
+		self.panel_info = panel_info(self);
+		self.manager.AddPane(
+			self.panel_info,
+			aui.AuiPaneInfo().Name("panel info").Caption("terminal").Right()
+				.FloatingSize(self.panel_info.GetBestSize()).CloseButton(True)
+				.MinSize((300, 100))
+		);	
+
 		#add a status bar
 		self.status_bar = wx.StatusBar(self, wx.NewId());
 		self.status_bar.SetFieldsCount(3);
@@ -683,6 +717,10 @@ class dipl_frame(wx.Frame):
 		self.s_zoom_out = 5;
 		self.status = self.s_normal;
 
+		#define a function which prints strings on text_term
+		global _print;
+		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
+
 		self.net = cnn();
 		with open("cnn.dat", "rb") as fobj:
 			param = pickle.load(fobj);
@@ -692,6 +730,18 @@ class dipl_frame(wx.Frame):
 		self.manager.UnInit();
 		del self.manager;
 		return super(dipl_frame, self).Destroy();
+
+	def print_term(self, text):
+		self.panel_info.text_term.AppendText(text);
+
+	def execute(self, script):
+		try:
+			exec(script);
+		except:
+			info = sys.exc_info();
+#			self.print_term("File \"%s\", line %d, column %d\n" % (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2]));
+#			self.print_term("    " + info[1].args[1][3] + "\n");
+			self.print_term(info[1].args[0] + "\n");
 
 	def on_quit(self, event):
 		self.Close();
@@ -727,13 +777,7 @@ class dipl_frame(wx.Frame):
 		if dialog.ShowModal() == wx.ID_OK:
 			with open(dialog.GetPath()) as fobj:
 				script = fobj.read();
-			try:
-				exec(script);
-			except:
-				info = sys.exc_info();
-				print("File \"%s\", line %d, column %d" % (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2]));
-				print("    " + info[1].args[1][3])
-				print(info[1].args[0]);
+			self.execute(script);
 		dialog.Destroy();
 
 	def on_undo(self, event):
@@ -955,7 +999,9 @@ class dipl_frame(wx.Frame):
 		if sel == num:
 			img = self.panel_draw.img.copy();
 			img.resize_linear((28, 28));
-			data = 1 - (np.mean(img.data, axis = 2) / 255);
+			data = (np.mean(img.data, axis = 2) / 255);
+			if np.mean(data) > 0.5:
+				data = 1 - data;
 			data = data.reshape((1, 1, 28, 28));
 			data = Variable(torch.Tensor(data));
 			result = self.net(data).reshape(10);
