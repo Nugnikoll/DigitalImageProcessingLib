@@ -7,6 +7,7 @@ import os;
 import time;
 import copy;
 import math as m;
+import traceback;
 from matplotlib import pyplot as plt;
 from PIL import Image as image;
 import numpy as np;
@@ -800,17 +801,20 @@ class dipl_frame(wx.Frame):
 		self.panel_info.text_term.AppendText(text);
 
 	def execute(self, script):
+		frame = self;
+		class io_term:
+			def write(self, text):
+				frame.print_term(text);
+		buf = io_term();
+		out_save = sys.stdout;
+		sys.stdout = buf;
 		try:
 			exec(script);
+			sys.stdout = out_save;
 		except:
-			info = sys.exc_info();
-			if len(info[1].args) >= 3:
-				self.print_term(
-					"File \"%s\", line %d, column %d\n"
-					% (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2])
-				);
-				self.print_term("    " + info[1].args[1][3] + "\n");
-			self.print_term(info[1].args[0] + "\n");
+			traceback.print_exc(limit = 10, file = buf);
+		finally:
+			sys.stdout = out_save;
 
 	def on_quit(self, event):
 		self.Close();
