@@ -316,8 +316,8 @@ class panel_draw(wx.Panel):
 			dc.DrawBitmap(self.img_background, (0, 0));
 		else:
 			sw, sh = self.GetSize();
-			h = self.img.pos[0] + m.ceil(self.img.data.shape[0] * self.img.scale[0]); 
-			w = self.img.pos[1] + m.ceil(self.img.data.shape[1] * self.img.scale[1]);
+			h = self.img.pos[0] + m.floor(self.img.data.shape[0] * self.img.scale[0]); 
+			w = self.img.pos[1] + m.floor(self.img.data.shape[1] * self.img.scale[1]);
 			dc.SetClippingRegion(0, 0, self.img.pos[1], sh);
 			dc.DrawBitmap(self.img_background, (0, 0));
 			dc.DestroyClippingRegion();
@@ -411,8 +411,8 @@ class panel_draw(wx.Panel):
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
-					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
-					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+					m.floor(self.img.data.shape[1] * self.img.scale[0]),
+					m.floor(self.img.data.shape[0] * self.img.scale[0])
 				);
 				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
@@ -421,8 +421,8 @@ class panel_draw(wx.Panel):
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
-					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
-					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+					m.floor(self.img.data.shape[1] * self.img.scale[0]),
+					m.floor(self.img.data.shape[0] * self.img.scale[0])
 				);
 				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
