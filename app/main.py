@@ -162,6 +162,20 @@ class dimage:
 			dc.DrawPoint(pos_list[0]);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
+	def erase_lines(self, pos_list):
+		self.push();
+		pos_list = [i[::-1] for i in pos_list];
+
+		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
+		if len(pos_list) > 1:
+			dc.DrawLines(pos_list);
+		else:
+			dc.DrawPoint(pos_list[0]);
+		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+
 	def resize_near(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
@@ -282,9 +296,10 @@ class panel_draw(wx.Panel):
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
-		self.s_picker = 3;
-		self.s_zoom_in = 4;
-		self.s_zoom_out = 5;
+		self.s_eraser = 3;
+		self.s_picker = 4;
+		self.s_zoom_in = 5;
+		self.s_zoom_out = 6;
 		self.status = self.s_normal;
 
 		data = np.array([[[20], [100]],[[100], [20]]]);
@@ -348,6 +363,8 @@ class panel_draw(wx.Panel):
 		elif status == self.s_pencil:
 			#self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
 			self.SetCursor(self.frame.icon_pencil);
+		elif status == self.s_eraser:
+			self.SetCursor(self.frame.icon_eraser);
 		elif status == self.s_picker:
 			self.SetCursor(self.frame.icon_picker);
 		elif status == self.s_zoom_in:
@@ -375,7 +392,7 @@ class panel_draw(wx.Panel):
 				self.color = wx.Colour(color);
 				self.frame.button_color.SetBackgroundColour(self.color);
 				self.frame.SetStatusText(str(color), 0);
-		elif self.status == self.s_pencil:
+		elif self.status == self.s_pencil or self.status == self.s_eraser:
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.pos_list = [pos_img];
@@ -390,6 +407,16 @@ class panel_draw(wx.Panel):
 
 		if self.flag_down:
 			if self.status == self.s_pencil:
+				dc = wx.ClientDC(self);
+				dc.SetClippingRegion(
+					self.img.pos[1], self.img.pos[0],
+					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
+					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+				);
+				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
+				dc.DrawLine(self.pos[::-1], pos[::-1]);
+				self.pos_list.append(pos_img);
+			elif self.status == self.s_eraser:
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
@@ -430,7 +457,10 @@ class panel_draw(wx.Panel):
 			self.img.display();
 		elif self.status == self.s_pencil:
 			self.img.draw_lines(self.pos_list);
-			self.img.display()
+			self.img.display();
+		elif self.status == self.s_eraser:
+			self.img.erase_lines(self.pos_list);
+			self.img.display();
 
 class panel_info(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
@@ -692,6 +722,16 @@ class dipl_frame(wx.Frame):
 		self.icon_pencil = wx.Cursor(self.icon_pencil)
 		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
 
+		self.id_tool_eraser = wx.NewId();
+		self.icon_eraser = wx.Image("../icon/eraser.png");
+		self.icon_eraser.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 3);
+		self.icon_eraser.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 18);
+		tool_draw.AddTool(
+			self.id_tool_eraser, "eraser", self.icon_eraser.ConvertToBitmap(), shortHelp = "eraser"
+		);
+		self.icon_eraser = wx.Cursor(self.icon_eraser)
+		self.Bind(wx.EVT_TOOL, self.on_eraser, id = self.id_tool_eraser);
+
 		self.id_tool_picker = wx.NewId();
 		self.icon_picker = wx.Image("../icon/picker.png");
 		self.icon_picker.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 5);
@@ -737,10 +777,10 @@ class dipl_frame(wx.Frame):
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
-		self.s_picker = 3;
-		self.s_zoom_in = 4;
-		self.s_zoom_out = 5;
-		self.status = self.s_normal;
+		self.s_eraser = 3;
+		self.s_picker = 4;
+		self.s_zoom_in = 5;
+		self.s_zoom_out = 6;
 
 		#define a function which prints strings on text_term
 		global _print;
@@ -764,8 +804,12 @@ class dipl_frame(wx.Frame):
 			exec(script);
 		except:
 			info = sys.exc_info();
-#			self.print_term("File \"%s\", line %d, column %d\n" % (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2]));
-#			self.print_term("    " + info[1].args[1][3] + "\n");
+			if len(info[1].args) >= 3:
+				self.print_term(
+					"File \"%s\", line %d, column %d\n"
+					% (info[1].args[1][0], info[1].args[1][1], info[1].args[1][2])
+				);
+				self.print_term("    " + info[1].args[1][3] + "\n");
 			self.print_term(info[1].args[0] + "\n");
 
 	def on_quit(self, event):
@@ -873,6 +917,9 @@ class dipl_frame(wx.Frame):
 
 	def on_pencil(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_pencil);
+
+	def on_eraser(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_eraser);
 
 	def on_picker(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_picker);
