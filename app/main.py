@@ -218,7 +218,12 @@ class dimage:
 		result[result > 255] = 255;
 		result[result < 0] = 0;
 		result = result.astype(np.int32);
-		self.data = result;
+		shape2 = (np.array(kernel.shape) - 1) // 2;
+		shape3 = (np.array(kernel.shape) - 1) - shape2;
+#		result_next = np.empty((shape[0] - shape2[0], shape[1] - shape2[1], shape[2]));
+#		for i in range(self.data.shape[2]):
+#			result_next[:, :, i] = jpeg.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
+		self.data = result[shape3[0]: -shape2[0], shape3[1]: -shape2[1]].copy();
 
 	def sharpen(self, alpha):
 		self.push();
