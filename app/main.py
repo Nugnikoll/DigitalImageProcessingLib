@@ -9,10 +9,11 @@ import copy;
 import math as m;
 import traceback;
 from matplotlib import pyplot as plt;
-from PIL import Image as image;
+#from PIL import Image as image;
 import numpy as np;
 
 from nn import *;
+from WideResNet import *;
 sys.path.append("../python");
 import jpeg;
 
@@ -600,7 +601,8 @@ class dipl_frame(wx.Frame):
 				"Blur Image",
 				"Sharpen Image",
 				"Laplacian",
-				"MNIST CNN classification"
+				"MNIST CNN classification",
+				"CIFAR-10 classification"
 			],
 			size = (180,-1)
 		);
@@ -793,9 +795,13 @@ class dipl_frame(wx.Frame):
 		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
 
 		self.net = cnn();
-		with open("cnn.dat", "rb") as fobj:
+		with open("mnist_model.dat", "rb") as fobj:
 			param = pickle.load(fobj);
 		self.net.load_state_dict(param);
+
+		self.net_cifar = WideResNet(depth=28, num_classes=10);
+		self.net_cifar.load_state_dict(torch.load("cifar10_model.pth"));
+		self.net_cifar.eval();
 
 	def Destroy(self):
 		self.manager.UnInit();
@@ -1051,6 +1057,17 @@ class dipl_frame(wx.Frame):
 			return;
 		num += 1;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" object:  ")
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
 	def on_transform(self, event):
 		if self.panel_draw.img is None:
 			return;
@@ -1134,6 +1151,20 @@ class dipl_frame(wx.Frame):
 			result = self.net(data).reshape(10);
 			prob, result = result.max(dim = 0);
 			self.text_input_info1.SetLabel(" number: %d probability: %.4f" % (result.data.item(), prob.data.item()));
+			return;
+		num += 1;
+
+		if sel == num:
+			img = self.panel_draw.img.copy();
+			img.resize_linear((32, 32));
+			data = img.data / 255;
+			data = data.reshape((1, 32, 32, 3));
+			data = np.rollaxis(data, 3, 1);
+			data = Variable(torch.Tensor(data));
+			result = self.net_cifar(data).reshape(10);
+			prob, result = result.max(dim = 0);
+			class_name = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck');
+			self.text_input_info1.SetLabel(" object: %s value: %.4f" % (class_name[result.data.item()], prob.data.item()));
 			return;
 		num += 1;
 
