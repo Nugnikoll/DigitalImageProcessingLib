@@ -9,10 +9,9 @@ import copy;
 import math as m;
 import traceback;
 from matplotlib import pyplot as plt;
-#from PIL import Image as image;
 import numpy as np;
 
-from nn import *;
+from net_mnist import *;
 from WideResNet import *;
 sys.path.append("../python");
 import jpeg;
@@ -794,10 +793,9 @@ class dipl_frame(wx.Frame):
 		global _print;
 		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
 
-		self.net = cnn();
-		with open("mnist_model.dat", "rb") as fobj:
-			param = pickle.load(fobj);
-		self.net.load_state_dict(param);
+		self.net_mnist = net_mnist();
+		self.net_mnist.load_state_dict(torch.load("model_mnist.pt"));
+		self.net_mnist.eval();
 
 		self.net_cifar = WideResNet(depth=28, num_classes=10);
 		self.net_cifar.load_state_dict(torch.load("cifar10_model.pth"));
@@ -1148,9 +1146,9 @@ class dipl_frame(wx.Frame):
 				data = 1 - data;
 			data = data.reshape((1, 1, 28, 28));
 			data = Variable(torch.Tensor(data));
-			result = self.net(data).reshape(10);
+			result = self.net_mnist(data).reshape(10);
 			prob, result = result.max(dim = 0);
-			self.text_input_info1.SetLabel(" number: %d probability: %.4f" % (result.data.item(), prob.data.item()));
+			self.text_input_info1.SetLabel(" number: %d value: %.4f" % (result.data.item(), prob.data.item()));
 			return;
 		num += 1;
 
