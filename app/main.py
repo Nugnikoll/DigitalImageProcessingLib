@@ -9,10 +9,10 @@ import copy;
 import math as m;
 import traceback;
 from matplotlib import pyplot as plt;
-from PIL import Image as image;
 import numpy as np;
 
-from nn import *;
+from net_mnist import *;
+from WideResNet import *;
 sys.path.append("../python");
 import jpeg;
 
@@ -218,7 +218,12 @@ class dimage:
 		result[result > 255] = 255;
 		result[result < 0] = 0;
 		result = result.astype(np.int32);
-		self.data = result;
+		shape2 = (np.array(kernel.shape) - 1) // 2;
+		shape3 = (np.array(kernel.shape) - 1) - shape2;
+#		result_next = np.empty((shape[0] - shape2[0], shape[1] - shape2[1], shape[2]));
+#		for i in range(self.data.shape[2]):
+#			result_next[:, :, i] = jpeg.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
+		self.data = result[shape3[0]: -shape2[0], shape3[1]: -shape2[1]].copy();
 
 	def sharpen(self, alpha):
 		self.push();
@@ -316,8 +321,8 @@ class panel_draw(wx.Panel):
 			dc.DrawBitmap(self.img_background, (0, 0));
 		else:
 			sw, sh = self.GetSize();
-			h = self.img.pos[0] + m.ceil(self.img.data.shape[0] * self.img.scale[0]); 
-			w = self.img.pos[1] + m.ceil(self.img.data.shape[1] * self.img.scale[1]);
+			h = self.img.pos[0] + m.floor(self.img.data.shape[0] * self.img.scale[0]); 
+			w = self.img.pos[1] + m.floor(self.img.data.shape[1] * self.img.scale[1]);
 			dc.SetClippingRegion(0, 0, self.img.pos[1], sh);
 			dc.DrawBitmap(self.img_background, (0, 0));
 			dc.DestroyClippingRegion();
@@ -403,7 +408,7 @@ class panel_draw(wx.Panel):
 			return;
 
 		pos = np.array(event.GetPosition())[::-1];
-		pos_img = (pos - self.img.pos) / self.img.scale;
+		pos_img = np.floor((pos - self.img.pos) / self.img.scale);
 		self.frame.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
 
 		if self.flag_down:
@@ -411,8 +416,8 @@ class panel_draw(wx.Panel):
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
-					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
-					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+					m.floor(self.img.data.shape[1] * self.img.scale[0]),
+					m.floor(self.img.data.shape[0] * self.img.scale[0])
 				);
 				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
@@ -421,8 +426,8 @@ class panel_draw(wx.Panel):
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
-					m.ceil(self.img.data.shape[1] * self.img.scale[0]),
-					m.ceil(self.img.data.shape[0] * self.img.scale[0])
+					m.floor(self.img.data.shape[1] * self.img.scale[0]),
+					m.floor(self.img.data.shape[0] * self.img.scale[0])
 				);
 				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
@@ -595,7 +600,8 @@ class dipl_frame(wx.Frame):
 				"Blur Image",
 				"Sharpen Image",
 				"Laplacian",
-				"MNIST CNN classification"
+				"MNIST CNN classification",
+				"CIFAR-10 classification"
 			],
 			size = (180,-1)
 		);
@@ -787,10 +793,13 @@ class dipl_frame(wx.Frame):
 		global _print;
 		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
 
-		self.net = cnn();
-		with open("cnn.dat", "rb") as fobj:
-			param = pickle.load(fobj);
-		self.net.load_state_dict(param);
+		self.net_mnist = net_mnist();
+		self.net_mnist.load_state_dict(torch.load("model_mnist.pt"));
+		self.net_mnist.eval();
+
+		self.net_cifar = WideResNet(depth=28, num_classes=10);
+		self.net_cifar.load_state_dict(torch.load("cifar10_model.pth"));
+		self.net_cifar.eval();
 
 	def Destroy(self):
 		self.manager.UnInit();
@@ -1046,6 +1055,17 @@ class dipl_frame(wx.Frame):
 			return;
 		num += 1;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" object:  ")
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
 	def on_transform(self, event):
 		if self.panel_draw.img is None:
 			return;
@@ -1126,9 +1146,23 @@ class dipl_frame(wx.Frame):
 				data = 1 - data;
 			data = data.reshape((1, 1, 28, 28));
 			data = Variable(torch.Tensor(data));
-			result = self.net(data).reshape(10);
+			result = self.net_mnist(data).reshape(10);
 			prob, result = result.max(dim = 0);
-			self.text_input_info1.SetLabel(" number: %d probability: %.4f" % (result.data.item(), prob.data.item()));
+			self.text_input_info1.SetLabel(" number: %d value: %.4f" % (result.data.item(), prob.data.item()));
+			return;
+		num += 1;
+
+		if sel == num:
+			img = self.panel_draw.img.copy();
+			img.resize_linear((32, 32));
+			data = img.data / 255;
+			data = data.reshape((1, 32, 32, 3));
+			data = np.rollaxis(data, 3, 1);
+			data = Variable(torch.Tensor(data));
+			result = self.net_cifar(data).reshape(10);
+			prob, result = result.max(dim = 0);
+			class_name = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck');
+			self.text_input_info1.SetLabel(" object: %s value: %.4f" % (class_name[result.data.item()], prob.data.item()));
 			return;
 		num += 1;
 
