@@ -42,8 +42,8 @@
 	- 前面编译好的动态链接库_jpeg.so或_jpeg.pyd
 	- [Python3](https://www.python.org/)
 	- [NumPy](http://www.numpy.org/) Python库，用于线性代数运算
-	- [Pillow](https://pypi.org/project/Pillow/) Python库，用于图像处理
 	- [WxPython](https://www.wxpython.org/) Python库，是WxWidgets的Python版本，用于制作图形界面
+	- [PyTorch >= 0.4.1](https://pytorch.org/) Python库，用于搭建神经网络
 - 程序的运行  
 	`cd app`  
 	`python3 main.py` 
