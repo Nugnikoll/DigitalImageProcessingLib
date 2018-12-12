@@ -1,6 +1,6 @@
 // -*- c++ -*-
 
-%module jpeg
+%module dipl
 
 %{
 	#define SWIG_FILE_WITH_INIT

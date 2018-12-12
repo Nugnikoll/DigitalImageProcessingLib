@@ -5,7 +5,7 @@ from PIL import Image as image;
 import sys;
 
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
 #img = image.open("../img/artery.jpg");
 img = image.open("../img/scene.jpg");
@@ -18,7 +18,7 @@ plt.close();
 delta = np.empty(data.shape, dtype = np.int32);
 delta_next = np.empty(data.shape, dtype = np.int32);
 for i in range(3):
-	delta[:, :, i] = jpeg.laplacian(data[:, :, i].astype(np.int32));
+	delta[:, :, i] = dipl.laplacian(data[:, :, i].astype(np.int32));
 
 #for i in range(3):
 #	delta_next[:, :, i] += - np.min(delta[:, :, i]);

@@ -2,8 +2,13 @@
 #define TRANSFORM_H
 
 #include <complex>
+#include <chrono>
+#include <random>
+#include <functional>
 
 using namespace std;
+
+extern default_random_engine engine;
 
 void padding(
 	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
@@ -38,5 +43,10 @@ void equalize(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int low =
 void laplacian(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2);
 void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j1);
 void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, double* ptrj, int j1, int j2);
+
+void noise_guass(int* ptri, int i1, int i2, const double& variance);
+void noise_salt(int* ptri, int i1, int i2, const double& probability, const int& value);
+
+void filter_median(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, const int& kernel_size);
 
 #endif //TRANSFORM_H

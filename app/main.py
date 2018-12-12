@@ -14,7 +14,7 @@ import numpy as np;
 from net_mnist import *;
 from WideResNet import *;
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
 def img2numpy(wximg):
 	buf = wximg.GetDataBuffer();
@@ -113,8 +113,8 @@ class dimage:
 			return;
 		pos = np.minimum(pos, np.array([0, 0]));
 
-		data = jpeg.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = jpeg.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
@@ -181,30 +181,30 @@ class dimage:
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1])); 
+			result[:, :, i] = dipl.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1])); 
 		self.data = result;
-		self.alpha = jpeg.resize_near(self.alpha, int(size[0]), int(size[1]));
+		self.alpha = dipl.resize_near(self.alpha, int(size[0]), int(size[1]));
 
 	def resize_linear(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
+			result[:, :, i] = dipl.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
 		self.data = result;
-		self.alpha = jpeg.resize_linear(self.alpha, int(size[0]), int(size[1]));
+		self.alpha = dipl.resize_linear(self.alpha, int(size[0]), int(size[1]));
 
 	def equalize(self):
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.equalize(self.data[:, :, i].copy());
+			result[:, :, i] = dipl.equalize(self.data[:, :, i].copy());
 		self.data = result;
 
 	def power_law(self, gamma):
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.power_law(self.data[:, :, i].copy(), gamma);
+			result[:, :, i] = dipl.power_law(self.data[:, :, i].copy(), gamma);
 		self.data = result;
 
 	def correlate(self, kernel):
@@ -214,7 +214,7 @@ class dimage:
 		shape[1] += kernel.shape[1] - 1;
 		result = np.empty(shape, dtype = np.float64);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.correlate2(self.data[:, :, i].astype(np.float64), kernel);
+			result[:, :, i] = dipl.correlate2(self.data[:, :, i].astype(np.float64), kernel);
 		result[result > 255] = 255;
 		result[result < 0] = 0;
 		result = result.astype(np.int32);
@@ -222,14 +222,14 @@ class dimage:
 		shape3 = (np.array(kernel.shape) - 1) - shape2;
 #		result_next = np.empty((shape[0] - shape2[0], shape[1] - shape2[1], shape[2]));
 #		for i in range(self.data.shape[2]):
-#			result_next[:, :, i] = jpeg.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
+#			result_next[:, :, i] = dipl.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
 		self.data = result[shape3[0]: -shape2[0], shape3[1]: -shape2[1]].copy();
 
 	def sharpen(self, alpha):
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
+			result[:, :, i] = dipl.laplacian(self.data[:, :, i].copy());
 		result = self.data + result * alpha;
 		result[result > 255] = 255;
 		result[result < 0] = 0;
@@ -240,15 +240,42 @@ class dimage:
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
+			result[:, :, i] = dipl.laplacian(self.data[:, :, i].copy());
 		result -= np.min(result);
 		result = result.astype(np.float64) * 255 / max(np.max(result), 1);
 		result = result.astype(np.int32);
 		self.data = result;
 
+	def noise_guass(self, variance):
+		self.push();
+		self.data = self.data.copy();
+		for i in range(self.data.shape[2]):
+			data = self.data[:, :, i].copy();
+			dipl.noise_guass(data, variance);
+			self.data[:, :, i] = data;
+		self.data[self.data < 0] = 0;
+		self.data[self.data > 255] = 255;
+
+	def noise_salt(self, probability, value):
+		self.push();
+		self.data = self.data.copy();
+		for i in range(self.data.shape[2]):
+			data = self.data[:, :, i].copy();
+			dipl.noise_salt(data, probability, value);
+			self.data[:, :, i] = data;
+		self.data[self.data < 0] = 0;
+		self.data[self.data > 255] = 255;
+
+	def filter_median(self, kernel_size):
+		self.push();
+		result = np.empty(self.data.shape, dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = dipl.filter_median(self.data[:, :, i].copy(), kernel_size);
+		self.data = result;
+
 class dialog_new(wx.Dialog):
 
-	def __init__(self, parent, title = "", size = (250, 150)):
+	def __init__(self, parent, title = "", size = (250, 200)):
 		super(dialog_new, self).__init__(parent = parent, title = title, size = size);
 		panel_base = wx.Panel(self);
 		sizer_base = wx.BoxSizer(wx.VERTICAL);
@@ -272,8 +299,6 @@ class dialog_new(wx.Dialog):
 		button_ok = wx.Button(panel_base, wx.ID_OK , label = "OK");
 		sizer_button.Add(button_ok, 0, wx.ALL | wx.EXPAND, 5);
 
-		#self.Fit();
-
 class panel_draw(wx.Panel):
 
 	def __init__(self, parent, size = wx.DefaultSize):
@@ -286,9 +311,9 @@ class panel_draw(wx.Panel):
 		self.SetCursor(self.frame.icon_normal);
 
 		self.Bind(wx.EVT_PAINT, self.on_paint);
-		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
 		self.Bind(wx.EVT_LEFT_UP, self.on_leftup);
 		self.Bind(wx.EVT_MOTION, self.on_motion);
+		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
 
 		self.path = None;
 		self.img = None;
@@ -308,9 +333,12 @@ class panel_draw(wx.Panel):
 		self.s_zoom_out = 6;
 		self.status = self.s_normal;
 
+		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
+		screen_h = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_Y) // 8 + 1;
+
 		data = np.array([[[20], [100]],[[100], [20]]]);
 		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
-		data = np.tile(data, (50, 85, 1));
+		data = np.tile(data, (screen_h, screen_w, 1));
 		self.data_background = data;
 		self.img_background = numpy2bitmap(data);
 
@@ -342,6 +370,7 @@ class panel_draw(wx.Panel):
 		else:
 			self.img.origin();
 		self.img.create([size[0], size[1], 3]);
+		self.clear();
 		self.img.display();
 		self.frame.SetStatusText(str(self.img.scale[0]), 1);
 
@@ -352,6 +381,7 @@ class panel_draw(wx.Panel):
 		else:
 			self.img.origin();
 		self.img.load(self.path);
+		self.clear();
 		self.img.display();
 		self.frame.SetStatusText(str(self.img.scale[0]), 1);
 
@@ -588,7 +618,7 @@ class dipl_frame(wx.Frame):
 		menu_help.Append(menu_about);
 
 		#create a toolbar
-		self.tool_transform = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		self.tool_transform = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_NODIVIDER);
 		self.tool_transform.SetToolBitmapSize(wx.Size(40,40));
 
 		self.choice_transform = wx.Choice(
@@ -600,10 +630,12 @@ class dipl_frame(wx.Frame):
 				"Blur Image",
 				"Sharpen Image",
 				"Laplacian",
+				"Guassian Noise",
+				"Salt-and-pepper Noise",
+				"Median Filter",
 				"MNIST CNN classification",
 				"CIFAR-10 classification"
 			],
-			size = (180,-1)
 		);
 		self.choice_transform.SetSelection(0);
 		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
@@ -622,9 +654,6 @@ class dipl_frame(wx.Frame):
 		self.text_input3 = wx.TextCtrl(self.tool_transform);
 		self.tool_transform.AddControl(self.text_input3);
 
-		self.text_input_info3.Hide();
-		self.text_input3.Hide();
-
 		self.id_tool_run = wx.NewId();
 		self.tool_transform.AddTool(
 			self.id_tool_run, "transform", wx.Bitmap("../icon/right_arrow.png"), shortHelp = "transform"
@@ -635,10 +664,13 @@ class dipl_frame(wx.Frame):
 		self.manager.AddPane(
 			self.tool_transform, aui.AuiPaneInfo().
 			Name("tool_transform").Caption("tool transform").
-			ToolbarPane().Top().Row(1).
+			ToolbarPane().Top().Row(1).Position(2).
 			LeftDockable(False).RightDockable(False).
 			TopDockable(True).BottomDockable(False)
 		);
+
+		self.text_input_info3.Hide();
+		self.text_input3.Hide();
 
 		#create a toolbar
 		self.tool_mouse = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
@@ -698,7 +730,7 @@ class dipl_frame(wx.Frame):
 		self.manager.AddPane(
 			self.tool_mouse, aui.AuiPaneInfo().
 			Name("tool_mouse").Caption("tool mouse").
-			ToolbarPane().Top().Row(1).
+			ToolbarPane().Top().Row(1).Position(1).
 			LeftDockable(False).RightDockable(False).
 			TopDockable(True).BottomDockable(False)
 		);
@@ -843,7 +875,17 @@ class dipl_frame(wx.Frame):
 	def on_open(self, event):
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
-		dialog = wx.FileDialog(self, message = "Open File", defaultDir = self.path_image, wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
+		dialog = wx.FileDialog(
+			self, message = "Open File", defaultDir = self.path_image,
+			wildcard = (
+				"Joint Photographic Experts Group files(*.jpg;*.jpeg)|*.jpg;*.jpeg"
+				"|Portable Network Graphics Files(*.png)|*.png"
+				"|Bitmap Image Files(*.bmp)|*.bmp"
+				"|Tagged Image Files(*.tif;*.tiff)|*.tif;*.tiff"
+				"|X PixMap Files(*.xpm)|*.xpm"
+			),
+			style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
+		);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.open_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
@@ -854,7 +896,18 @@ class dipl_frame(wx.Frame):
 			return;
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
-		dialog = wx.FileDialog(self, message = "Save File", defaultDir = self.path_image, wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
+		dialog = wx.FileDialog(
+			self, message = "Save File",
+			defaultDir = self.path_image,
+			wildcard = (
+				"Joint Photographic Experts Group files(*.jpg;*.jpeg)|*.jpg;*.jpeg"
+				"|Portable Network Graphics Files(*.png)|*.png"
+				"|Bitmap Image Files(*.bmp)|*.bmp"
+				"|Tagged Image Files(*.tif;*.tiff)|*.tif;*.tiff"
+				"|X PixMap Files(*.xpm)|*.xpm"
+			),
+			style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
+		);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.save_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
@@ -1046,6 +1099,44 @@ class dipl_frame(wx.Frame):
 
 		if sel == num:
 			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info1.SetLabel(" variance:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input1.SetValue(str(5.0));
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info2.Show();
+			self.text_input_info1.SetLabel(" probability:");
+			self.text_input_info2.SetLabel(" value:")
+			self.text_input1.Show();
+			self.text_input2.Show();
+			self.text_input1.SetValue(str(0.1));
+			self.text_input2.SetValue(str(10))
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input_info1.SetLabel(" kernel size:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input3.Hide();
+			self.text_input1.SetValue(str(5));
+			return;
+		num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
 			self.text_input_info1.SetLabel(" number:  ")
 			self.text_input_info2.Hide();
 			self.text_input1.Hide();
@@ -1134,6 +1225,34 @@ class dipl_frame(wx.Frame):
 
 		if sel == num:
 			self.panel_draw.img.laplacian();
+			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			variance = float(self.text_input1.GetValue());
+			if variance <= 0:
+				return;
+			self.panel_draw.img.noise_guass(variance);
+			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			probability = float(self.text_input1.GetValue());
+			value = int(self.text_input2.GetValue());
+			if probability <= 0 or probability > 1 or value < -255 or value > 255:
+				return;
+			self.panel_draw.img.noise_salt(probability, value);
+			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			kernel_size = int(self.text_input1.GetValue());
+			if kernel_size <= 0:
+				return;
+			self.panel_draw.img.filter_median(kernel_size);
 			self.panel_draw.img.display();
 			return;
 		num += 1;

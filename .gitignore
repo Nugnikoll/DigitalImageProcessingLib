@@ -19,7 +19,7 @@
 out*
 *temp*
 
-python/jpeg.py
+python/dipl.py
 python/*wrap.*
 
 build/*

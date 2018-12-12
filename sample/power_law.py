@@ -5,7 +5,7 @@ from PIL import Image as image;
 import sys;
 
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
 img = image.open("../img/dark.jpg");
 #img = image.open("../img/artery.jpg");
@@ -16,7 +16,7 @@ plt.show();
 plt.close();
 result = np.empty(data.shape, dtype = data.dtype);
 for i in range(3):
-	result[:, :, i] = jpeg.power_law(data[:, :, i].astype(np.int32), 0.4);
+	result[:, :, i] = dipl.power_law(data[:, :, i].astype(np.int32), 0.4);
 plt.imshow(result);
 plt.show();
 plt.close();
