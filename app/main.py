@@ -248,7 +248,7 @@ class dimage:
 
 class dialog_new(wx.Dialog):
 
-	def __init__(self, parent, title = "", size = (250, 150)):
+	def __init__(self, parent, title = "", size = (250, 200)):
 		super(dialog_new, self).__init__(parent = parent, title = title, size = size);
 		panel_base = wx.Panel(self);
 		sizer_base = wx.BoxSizer(wx.VERTICAL);
@@ -271,8 +271,6 @@ class dialog_new(wx.Dialog):
 		sizer_button.Add(button_cancel, 0, wx.ALL | wx.EXPAND, 5);
 		button_ok = wx.Button(panel_base, wx.ID_OK , label = "OK");
 		sizer_button.Add(button_ok, 0, wx.ALL | wx.EXPAND, 5);
-
-		#self.Fit();
 
 class panel_draw(wx.Panel):
 
@@ -308,9 +306,12 @@ class panel_draw(wx.Panel):
 		self.s_zoom_out = 6;
 		self.status = self.s_normal;
 
+		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
+		screen_h = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_Y) // 8 + 1;
+
 		data = np.array([[[20], [100]],[[100], [20]]]);
 		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
-		data = np.tile(data, (50, 85, 1));
+		data = np.tile(data, (screen_h, screen_w, 1));
 		self.data_background = data;
 		self.img_background = numpy2bitmap(data);
 
@@ -588,7 +589,7 @@ class dipl_frame(wx.Frame):
 		menu_help.Append(menu_about);
 
 		#create a toolbar
-		self.tool_transform = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
+		self.tool_transform = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_NODIVIDER);
 		self.tool_transform.SetToolBitmapSize(wx.Size(40,40));
 
 		self.choice_transform = wx.Choice(
@@ -603,7 +604,6 @@ class dipl_frame(wx.Frame):
 				"MNIST CNN classification",
 				"CIFAR-10 classification"
 			],
-			size = (180,-1)
 		);
 		self.choice_transform.SetSelection(0);
 		self.choice_transform.Bind(wx.EVT_CHOICE, self.on_choice_transform);
@@ -622,9 +622,6 @@ class dipl_frame(wx.Frame):
 		self.text_input3 = wx.TextCtrl(self.tool_transform);
 		self.tool_transform.AddControl(self.text_input3);
 
-		self.text_input_info3.Hide();
-		self.text_input3.Hide();
-
 		self.id_tool_run = wx.NewId();
 		self.tool_transform.AddTool(
 			self.id_tool_run, "transform", wx.Bitmap("../icon/right_arrow.png"), shortHelp = "transform"
@@ -635,10 +632,13 @@ class dipl_frame(wx.Frame):
 		self.manager.AddPane(
 			self.tool_transform, aui.AuiPaneInfo().
 			Name("tool_transform").Caption("tool transform").
-			ToolbarPane().Top().Row(1).
+			ToolbarPane().Top().Row(1).Position(2).
 			LeftDockable(False).RightDockable(False).
 			TopDockable(True).BottomDockable(False)
 		);
+
+		self.text_input_info3.Hide();
+		self.text_input3.Hide();
 
 		#create a toolbar
 		self.tool_mouse = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER);
@@ -698,7 +698,7 @@ class dipl_frame(wx.Frame):
 		self.manager.AddPane(
 			self.tool_mouse, aui.AuiPaneInfo().
 			Name("tool_mouse").Caption("tool mouse").
-			ToolbarPane().Top().Row(1).
+			ToolbarPane().Top().Row(1).Position(1).
 			LeftDockable(False).RightDockable(False).
 			TopDockable(True).BottomDockable(False)
 		);
@@ -843,7 +843,7 @@ class dipl_frame(wx.Frame):
 	def on_open(self, event):
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
-		dialog = wx.FileDialog(self, message = "Open File", defaultDir = self.path_image, wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
+		dialog = wx.FileDialog(self, message = "Open File", defaultDir = self.path_image, wildcard = "Bit Map Files(*.bmp)|*.bmp|JPEG files(*.jpg;*.jpeg)|*.jpg;*.jpeg|Portable Network Graph Files(*.png)|*.png|TIF Files(*.tif;*.tiff)|*.tif;*.tiff|XPM Files(*.xpm)|*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.open_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
@@ -854,7 +854,7 @@ class dipl_frame(wx.Frame):
 			return;
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
-		dialog = wx.FileDialog(self, message = "Save File", defaultDir = self.path_image, wildcard = "Image Files(*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm)|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
+		dialog = wx.FileDialog(self, message = "Save File", defaultDir = self.path_image, wildcard = "Bit Map Files(*.bmp)|*.bmp|JPEG files(*.jpg;*.jpeg)|*.jpg;*.jpeg|Portable Network Graph Files(*.png)|*.png|TIF Files(*.tif;*.tiff)|*.tif;*.tiff|XPM Files(*.xpm)|*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.save_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
