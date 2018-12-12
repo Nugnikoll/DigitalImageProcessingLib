@@ -594,5 +594,27 @@ void noise_salt(int* ptri, int i1, int i2, const double& probability, const int&
 }
 
 void filter_median(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, const int& kernel_size){
-	
+	*m1 = i1;
+	*m2 = i2;
+	*ptrm = new int[i1 * i2];
+
+	vector<int> vec;
+	vec.reserve(kernel_size * kernel_size);
+	int median;
+	int half1 = kernel_size / 2;
+	int half2 = kernel_size - half1;
+
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			vec.clear();
+			for(int k = max(0, i - half1); k != min(i1, i + half2); ++k){
+				for(int l = max(0, j - half1); l != min(i2, j + half2); ++l){
+					vec.push_back(ptri[k * i2 + l]);
+				}
+			}
+			nth_element(vec.begin(), vec.begin() + vec.size() / 2, vec.end());
+			median = vec[vec.size() / 2];
+			(*ptrm)[i * i2 + j] = median;
+		}
+	}
 }

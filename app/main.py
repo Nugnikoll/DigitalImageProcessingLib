@@ -266,6 +266,13 @@ class dimage:
 		self.data[self.data < 0] = 0;
 		self.data[self.data > 255] = 255;
 
+	def filter_median(self, kernel_size):
+		self.push();
+		result = np.empty(self.data.shape, dtype = np.int32);
+		for i in range(self.data.shape[2]):
+			result[:, :, i] = jpeg.filter_median(self.data[:, :, i].copy(), kernel_size);
+		self.data = result;
+
 class dialog_new(wx.Dialog):
 
 	def __init__(self, parent, title = "", size = (250, 200)):
@@ -623,6 +630,7 @@ class dipl_frame(wx.Frame):
 				"Laplacian",
 				"Guassian Noise",
 				"Salt-and-pepper Noise",
+				"Median Filter",
 				"MNIST CNN classification",
 				"CIFAR-10 classification"
 			],
@@ -1115,6 +1123,18 @@ class dipl_frame(wx.Frame):
 
 		if sel == num:
 			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input_info1.SetLabel(" kernel size:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input3.Hide();
+			self.text_input1.SetValue(str(5));
+			return;
+		num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
 			self.text_input_info1.SetLabel(" number:  ")
 			self.text_input_info2.Hide();
 			self.text_input1.Hide();
@@ -1222,6 +1242,15 @@ class dipl_frame(wx.Frame):
 			if probability <= 0 or probability > 1 or value < -255 or value > 255:
 				return;
 			self.panel_draw.img.noise_salt(probability, value);
+			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			kernel_size = int(self.text_input1.GetValue());
+			if kernel_size <= 0:
+				return;
+			self.panel_draw.img.filter_median(kernel_size);
 			self.panel_draw.img.display();
 			return;
 		num += 1;

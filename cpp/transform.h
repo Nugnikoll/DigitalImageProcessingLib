@@ -47,4 +47,6 @@ void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, d
 void noise_guass(int* ptri, int i1, int i2, const double& variance);
 void noise_salt(int* ptri, int i1, int i2, const double& probability, const int& value);
 
+void filter_median(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, const int& kernel_size);
+
 #endif //TRANSFORM_H
