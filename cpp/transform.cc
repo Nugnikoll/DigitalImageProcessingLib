@@ -9,6 +9,10 @@
 
 using namespace std;
 
+default_random_engine engine(
+	chrono::system_clock::now().time_since_epoch().count()
+);
+
 void padding(
 	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
 	const int& margin_t, const int& margin_b,
@@ -565,6 +569,16 @@ void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, d
 				}
 			}
 			(*ptrm)[i * *m2 + j] = value;
+		}
+	}
+}
+
+void noise_guass(int* ptri, int i1, int i2, const double& variance){
+	normal_distribution<double> dist(0, variance);
+	auto noise = bind(dist, engine);
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			ptri[i * i2 + j] += noise();
 		}
 	}
 }

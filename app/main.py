@@ -246,6 +246,16 @@ class dimage:
 		result = result.astype(np.int32);
 		self.data = result;
 
+	def noise_guass(self, variance):
+		self.push();
+		self.data = self.data.copy();
+		for i in range(self.data.shape[2]):
+			data = self.data[:, :, i].copy();
+			jpeg.noise_guass(data, variance);
+			self.data[:, :, i] = data;
+		self.data[self.data < 0] = 0;
+		self.data[self.data > 255] = 255;
+
 class dialog_new(wx.Dialog):
 
 	def __init__(self, parent, title = "", size = (250, 200)):
@@ -601,6 +611,7 @@ class dipl_frame(wx.Frame):
 				"Blur Image",
 				"Sharpen Image",
 				"Laplacian",
+				"Guassian Noise",
 				"MNIST CNN classification",
 				"CIFAR-10 classification"
 			],
@@ -1067,6 +1078,18 @@ class dipl_frame(wx.Frame):
 
 		if sel == num:
 			self.text_input_info1.Show();
+			self.text_input_info2.Hide();
+			self.text_input_info1.SetLabel(" variance:");
+			self.text_input1.Show();
+			self.text_input2.Hide();
+			self.text_input1.SetValue(str(5.0));
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
 			self.text_input_info1.SetLabel(" number:  ")
 			self.text_input_info2.Hide();
 			self.text_input1.Hide();
@@ -1155,6 +1178,15 @@ class dipl_frame(wx.Frame):
 
 		if sel == num:
 			self.panel_draw.img.laplacian();
+			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			variance = float(self.text_input1.GetValue());
+			if variance <= 0:
+				return;
+			self.panel_draw.img.noise_guass(variance);
 			self.panel_draw.img.display();
 			return;
 		num += 1;
