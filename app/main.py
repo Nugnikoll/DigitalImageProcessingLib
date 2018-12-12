@@ -14,7 +14,7 @@ import numpy as np;
 from net_mnist import *;
 from WideResNet import *;
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
 def img2numpy(wximg):
 	buf = wximg.GetDataBuffer();
@@ -113,8 +113,8 @@ class dimage:
 			return;
 		pos = np.minimum(pos, np.array([0, 0]));
 
-		data = jpeg.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = jpeg.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
@@ -181,30 +181,30 @@ class dimage:
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1])); 
+			result[:, :, i] = dipl.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1])); 
 		self.data = result;
-		self.alpha = jpeg.resize_near(self.alpha, int(size[0]), int(size[1]));
+		self.alpha = dipl.resize_near(self.alpha, int(size[0]), int(size[1]));
 
 	def resize_linear(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
+			result[:, :, i] = dipl.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
 		self.data = result;
-		self.alpha = jpeg.resize_linear(self.alpha, int(size[0]), int(size[1]));
+		self.alpha = dipl.resize_linear(self.alpha, int(size[0]), int(size[1]));
 
 	def equalize(self):
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.equalize(self.data[:, :, i].copy());
+			result[:, :, i] = dipl.equalize(self.data[:, :, i].copy());
 		self.data = result;
 
 	def power_law(self, gamma):
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.power_law(self.data[:, :, i].copy(), gamma);
+			result[:, :, i] = dipl.power_law(self.data[:, :, i].copy(), gamma);
 		self.data = result;
 
 	def correlate(self, kernel):
@@ -214,7 +214,7 @@ class dimage:
 		shape[1] += kernel.shape[1] - 1;
 		result = np.empty(shape, dtype = np.float64);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.correlate2(self.data[:, :, i].astype(np.float64), kernel);
+			result[:, :, i] = dipl.correlate2(self.data[:, :, i].astype(np.float64), kernel);
 		result[result > 255] = 255;
 		result[result < 0] = 0;
 		result = result.astype(np.int32);
@@ -222,14 +222,14 @@ class dimage:
 		shape3 = (np.array(kernel.shape) - 1) - shape2;
 #		result_next = np.empty((shape[0] - shape2[0], shape[1] - shape2[1], shape[2]));
 #		for i in range(self.data.shape[2]):
-#			result_next[:, :, i] = jpeg.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
+#			result_next[:, :, i] = dipl.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
 		self.data = result[shape3[0]: -shape2[0], shape3[1]: -shape2[1]].copy();
 
 	def sharpen(self, alpha):
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
+			result[:, :, i] = dipl.laplacian(self.data[:, :, i].copy());
 		result = self.data + result * alpha;
 		result[result > 255] = 255;
 		result[result < 0] = 0;
@@ -240,7 +240,7 @@ class dimage:
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.laplacian(self.data[:, :, i].copy());
+			result[:, :, i] = dipl.laplacian(self.data[:, :, i].copy());
 		result -= np.min(result);
 		result = result.astype(np.float64) * 255 / max(np.max(result), 1);
 		result = result.astype(np.int32);
@@ -251,7 +251,7 @@ class dimage:
 		self.data = self.data.copy();
 		for i in range(self.data.shape[2]):
 			data = self.data[:, :, i].copy();
-			jpeg.noise_guass(data, variance);
+			dipl.noise_guass(data, variance);
 			self.data[:, :, i] = data;
 		self.data[self.data < 0] = 0;
 		self.data[self.data > 255] = 255;
@@ -261,7 +261,7 @@ class dimage:
 		self.data = self.data.copy();
 		for i in range(self.data.shape[2]):
 			data = self.data[:, :, i].copy();
-			jpeg.noise_salt(data, probability, value);
+			dipl.noise_salt(data, probability, value);
 			self.data[:, :, i] = data;
 		self.data[self.data < 0] = 0;
 		self.data[self.data > 255] = 255;
@@ -270,7 +270,7 @@ class dimage:
 		self.push();
 		result = np.empty(self.data.shape, dtype = np.int32);
 		for i in range(self.data.shape[2]):
-			result[:, :, i] = jpeg.filter_median(self.data[:, :, i].copy(), kernel_size);
+			result[:, :, i] = dipl.filter_median(self.data[:, :, i].copy(), kernel_size);
 		self.data = result;
 
 class dialog_new(wx.Dialog):

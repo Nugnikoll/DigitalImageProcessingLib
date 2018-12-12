@@ -4,9 +4,9 @@ import numpy as np;
 import sys;
 
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
-jdecoder = jpeg.jpeg_decoder();
+jdecoder = dipl.jpeg_decoder();
 
 #jdecoder.loadfile('../img/scene.jpg');
 jdecoder.loadfile('../img/JPEG_example_JPG_RIP_100.jpg');
@@ -24,7 +24,7 @@ plt.imshow(data[:, :, 2], cmap = cm.gray);
 plt.show();
 plt.close();
 
-data = jpeg.ycc2rgb(data);
+data = dipl.ycc2rgb(data);
 
 data[data > 255] = 255;
 data[data < 0] = 0;

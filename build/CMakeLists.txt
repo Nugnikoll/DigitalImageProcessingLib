@@ -49,27 +49,27 @@ set (
 	source_file
 	${cpp_dir}/jpeg.cc
 	${cpp_dir}/transform.cc
-	${python_dir}/jpeg_wrap.cc
+	${python_dir}/dipl_wrap.cc
 )
 
 add_custom_command (
-	OUTPUT ${python_dir}/jpeg_wrap.cc
-	COMMAND swig -python -c++ -threads -w-314,-362,-389,-503,-509 -o ${python_dir}/jpeg_wrap.cc ${python_dir}/jpeg.i
-	DEPENDS ${python_dir}/jpeg.i ${head_file}
+	OUTPUT ${python_dir}/dipl_wrap.cc
+	COMMAND swig -python -c++ -threads -w-314,-362,-389,-503,-509 -o ${python_dir}/dipl_wrap.cc ${python_dir}/dipl.i
+	DEPENDS ${python_dir}/dipl.i ${head_file}
 )
 
-add_library(_jpeg SHARED ${source_file})
-set_property(TARGET _jpeg PROPERTY CXX_STANDARD 11)
-set_property(TARGET _jpeg PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET _jpeg PROPERTY CXX_EXTENSIONS OFF)
-target_link_libraries (_jpeg ${PYTHON_LIBRARIES})
+add_library(_dipl SHARED ${source_file})
+set_property(TARGET _dipl PROPERTY CXX_STANDARD 11)
+set_property(TARGET _dipl PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET _dipl PROPERTY CXX_EXTENSIONS OFF)
+target_link_libraries (_dipl ${PYTHON_LIBRARIES})
 
 if (WIN32)
-	add_custom_command(TARGET _jpeg POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_jpeg> ${python_dir}/_jpeg.pyd
+	add_custom_command(TARGET _dipl POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_dipl> ${python_dir}/_dipl.pyd
 	)
 else ()
-	add_custom_command(TARGET _jpeg POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_jpeg> ${python_dir}/
+	add_custom_command(TARGET _dipl POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_dipl> ${python_dir}/
 	)
 endif ()

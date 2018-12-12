@@ -5,7 +5,7 @@ import numpy as np;
 import sys;
 
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
 #img = image.open("../img/738b4710b912c8fcc7977bd3f1039245d6882143.jpg");
 img = image.open("../img/apple.png");
@@ -21,13 +21,13 @@ w = 139;
 result = np.empty((h, w, 3), dtype = np.uint8);
 
 #for i in range(result.shape[2]):
-#	result[:, :, i] = jpeg.resize_naive(data[:, :, i].astype(np.int32), h, w);
+#	result[:, :, i] = dipl.resize_naive(data[:, :, i].astype(np.int32), h, w);
 
 #for i in range(result.shape[2]):
-#	result[:, :, i] = jpeg.resize_near(data[:, :, i].astype(np.int32), h, w);
+#	result[:, :, i] = dipl.resize_near(data[:, :, i].astype(np.int32), h, w);
 
 for i in range(result.shape[2]):
-	result[:, :, i] = jpeg.resize_linear(data[:, :, i].astype(np.int32), h, w);
+	result[:, :, i] = dipl.resize_linear(data[:, :, i].astype(np.int32), h, w);
 
 plt.imshow(result);
 plt.show();

@@ -5,7 +5,7 @@ from PIL import Image as image;
 import sys;
 
 sys.path.append("../python");
-import jpeg;
+import dipl;
 
 img = image.open("../img/scene.jpg");
 data = np.array(img.getdata(), dtype = np.uint8);
@@ -26,7 +26,7 @@ size = [data.shape[i] + kernel.shape[i] - 1 for i in range(2)];
 result = np.empty(size + [3], dtype = np.float64);
 
 for i in range(3):
-	result[:, :, i] = jpeg.correlate2(data[:, :, i].copy(), kernel);
+	result[:, :, i] = dipl.correlate2(data[:, :, i].copy(), kernel);
 
 plt.imshow(result.astype(np.uint8));
 plt.show();
