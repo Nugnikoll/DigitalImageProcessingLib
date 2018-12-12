@@ -45,5 +45,6 @@ void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j
 void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, double* ptrj, int j1, int j2);
 
 void noise_guass(int* ptri, int i1, int i2, const double& variance);
+void noise_salt(int* ptri, int i1, int i2, const double& probability, const int& value);
 
 #endif //TRANSFORM_H

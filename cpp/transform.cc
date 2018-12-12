@@ -575,10 +575,24 @@ void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, d
 
 void noise_guass(int* ptri, int i1, int i2, const double& variance){
 	normal_distribution<double> dist(0, variance);
-	auto noise = bind(dist, engine);
 	for(int i = 0; i != i1; ++i){
 		for(int j = 0; j != i2; ++j){
-			ptri[i * i2 + j] += noise();
+			ptri[i * i2 + j] += dist(engine);
 		}
 	}
+}
+
+void noise_salt(int* ptri, int i1, int i2, const double& probability, const int& value){
+	bernoulli_distribution dist(probability);
+	for(int i = 0; i != i1; ++i){
+		for(int j = 0; j != i2; ++j){
+			if(dist(engine)){
+				ptri[i * i2 + j] += value;
+			}
+		}
+	}
+}
+
+void filter_median(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, const int& kernel_size){
+	
 }

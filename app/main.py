@@ -256,6 +256,16 @@ class dimage:
 		self.data[self.data < 0] = 0;
 		self.data[self.data > 255] = 255;
 
+	def noise_salt(self, probability, value):
+		self.push();
+		self.data = self.data.copy();
+		for i in range(self.data.shape[2]):
+			data = self.data[:, :, i].copy();
+			jpeg.noise_salt(data, probability, value);
+			self.data[:, :, i] = data;
+		self.data[self.data < 0] = 0;
+		self.data[self.data > 255] = 255;
+
 class dialog_new(wx.Dialog):
 
 	def __init__(self, parent, title = "", size = (250, 200)):
@@ -294,9 +304,9 @@ class panel_draw(wx.Panel):
 		self.SetCursor(self.frame.icon_normal);
 
 		self.Bind(wx.EVT_PAINT, self.on_paint);
-		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
 		self.Bind(wx.EVT_LEFT_UP, self.on_leftup);
 		self.Bind(wx.EVT_MOTION, self.on_motion);
+		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
 
 		self.path = None;
 		self.img = None;
@@ -612,6 +622,7 @@ class dipl_frame(wx.Frame):
 				"Sharpen Image",
 				"Laplacian",
 				"Guassian Noise",
+				"Salt-and-pepper Noise",
 				"MNIST CNN classification",
 				"CIFAR-10 classification"
 			],
@@ -1090,6 +1101,20 @@ class dipl_frame(wx.Frame):
 
 		if sel == num:
 			self.text_input_info1.Show();
+			self.text_input_info2.Show();
+			self.text_input_info1.SetLabel(" probability:");
+			self.text_input_info2.SetLabel(" value:")
+			self.text_input1.Show();
+			self.text_input2.Show();
+			self.text_input1.SetValue(str(0.1));
+			self.text_input2.SetValue(str(10))
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
+		if sel == num:
+			self.text_input_info1.Show();
 			self.text_input_info1.SetLabel(" number:  ")
 			self.text_input_info2.Hide();
 			self.text_input1.Hide();
@@ -1187,6 +1212,16 @@ class dipl_frame(wx.Frame):
 			if variance <= 0:
 				return;
 			self.panel_draw.img.noise_guass(variance);
+			self.panel_draw.img.display();
+			return;
+		num += 1;
+
+		if sel == num:
+			probability = float(self.text_input1.GetValue());
+			value = int(self.text_input2.GetValue());
+			if probability <= 0 or probability > 1 or value < -255 or value > 255:
+				return;
+			self.panel_draw.img.noise_salt(probability, value);
 			self.panel_draw.img.display();
 			return;
 		num += 1;
