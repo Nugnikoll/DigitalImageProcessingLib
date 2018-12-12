@@ -843,7 +843,17 @@ class dipl_frame(wx.Frame):
 	def on_open(self, event):
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
-		dialog = wx.FileDialog(self, message = "Open File", defaultDir = self.path_image, wildcard = "Bit Map Files(*.bmp)|*.bmp|JPEG files(*.jpg;*.jpeg)|*.jpg;*.jpeg|Portable Network Graph Files(*.png)|*.png|TIF Files(*.tif;*.tiff)|*.tif;*.tiff|XPM Files(*.xpm)|*.xpm", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST);
+		dialog = wx.FileDialog(
+			self, message = "Open File", defaultDir = self.path_image,
+			wildcard = (
+				"Joint Photographic Experts Group files(*.jpg;*.jpeg)|*.jpg;*.jpeg"
+				"|Portable Network Graphics Files(*.png)|*.png"
+				"|Bitmap Image Files(*.bmp)|*.bmp"
+				"|Tagged Image Files(*.tif;*.tiff)|*.tif;*.tiff"
+				"|X PixMap Files(*.xpm)|*.xpm"
+			),
+			style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
+		);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.open_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
@@ -854,7 +864,18 @@ class dipl_frame(wx.Frame):
 			return;
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
-		dialog = wx.FileDialog(self, message = "Save File", defaultDir = self.path_image, wildcard = "Bit Map Files(*.bmp)|*.bmp|JPEG files(*.jpg;*.jpeg)|*.jpg;*.jpeg|Portable Network Graph Files(*.png)|*.png|TIF Files(*.tif;*.tiff)|*.tif;*.tiff|XPM Files(*.xpm)|*.xpm", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT);
+		dialog = wx.FileDialog(
+			self, message = "Save File",
+			defaultDir = self.path_image,
+			wildcard = (
+				"Joint Photographic Experts Group files(*.jpg;*.jpeg)|*.jpg;*.jpeg"
+				"|Portable Network Graphics Files(*.png)|*.png"
+				"|Bitmap Image Files(*.bmp)|*.bmp"
+				"|Tagged Image Files(*.tif;*.tiff)|*.tif;*.tiff"
+				"|X PixMap Files(*.xpm)|*.xpm"
+			),
+			style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
+		);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.save_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
