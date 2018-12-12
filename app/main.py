@@ -370,6 +370,7 @@ class panel_draw(wx.Panel):
 		else:
 			self.img.origin();
 		self.img.create([size[0], size[1], 3]);
+		self.clear();
 		self.img.display();
 		self.frame.SetStatusText(str(self.img.scale[0]), 1);
 
@@ -380,6 +381,7 @@ class panel_draw(wx.Panel):
 		else:
 			self.img.origin();
 		self.img.load(self.path);
+		self.clear();
 		self.img.display();
 		self.frame.SetStatusText(str(self.img.scale[0]), 1);
 
