@@ -13,6 +13,7 @@ import numpy as np;
 
 from net_mnist import *;
 from WideResNet import *;
+from net_signs import *;
 sys.path.append("../python");
 import dipl;
 
@@ -634,7 +635,8 @@ class dipl_frame(wx.Frame):
 				"Salt-and-pepper Noise",
 				"Median Filter",
 				"MNIST CNN classification",
-				"CIFAR-10 classification"
+				"CIFAR-10 classification",
+				"SIGNS hand guesture classification"
 			],
 		);
 		self.choice_transform.SetSelection(0);
@@ -832,6 +834,19 @@ class dipl_frame(wx.Frame):
 		self.net_cifar = WideResNet(depth=28, num_classes=10);
 		self.net_cifar.load_state_dict(torch.load("cifar10_model.pth"));
 		self.net_cifar.eval();
+
+		class empty: pass;
+		param = empty();
+		param.learning_rate = 1e-3;
+		param.batch_size = 64;
+		param.num_epochs = 100;
+		param.dropout_rate = 0.8; 
+		param.num_channels = 32;
+		param.save_summary_steps = 100;
+		param.num_workers = 8;
+		self.net_signs = net_signs(param);
+		self.net_signs.load_state_dict(torch.load("model_signs.pt")["state_dict"]);
+		self.net_signs.eval();
 
 	def Destroy(self):
 		self.manager.UnInit();
@@ -1157,6 +1172,17 @@ class dipl_frame(wx.Frame):
 			return;
 		num += 1;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" number:  ")
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
 	def on_transform(self, event):
 		if self.panel_draw.img is None:
 			return;
@@ -1282,6 +1308,20 @@ class dipl_frame(wx.Frame):
 			prob, result = result.max(dim = 0);
 			class_name = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck');
 			self.text_input_info1.SetLabel(" object: %s value: %.4f" % (class_name[result.data.item()], prob.data.item()));
+			return;
+		num += 1;
+
+		if sel == num:
+			img = self.panel_draw.img.copy();
+			img.resize_linear((64, 64));
+			data = img.data / 255;
+			data = data.reshape((1, 64, 64, 3));
+			data = np.rollaxis(data, 3, 1)
+			data = Variable(torch.Tensor(data));
+			result = self.net_signs(data).reshape(6);
+			print(result)
+			prob, result = result.max(dim = 0);
+			self.text_input_info1.SetLabel(" number: %d value: %.4f" % (result.data.item(), prob.data.item()));
 			return;
 		num += 1;
 
