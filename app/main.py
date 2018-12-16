@@ -823,16 +823,12 @@ class dipl_frame(wx.Frame):
 		self.s_zoom_in = 5;
 		self.s_zoom_out = 6;
 
-		#define a function which prints strings on text_term
-		global _print;
-		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
-
 		self.net_mnist = net_mnist();
 		self.net_mnist.load_state_dict(torch.load("model_mnist.pt"));
 		self.net_mnist.eval();
 
-		self.net_cifar = WideResNet(depth=28, num_classes=10);
-		self.net_cifar.load_state_dict(torch.load("cifar10_model.pth"));
+		self.net_cifar = WideResNet(depth = 28, num_classes = 10);
+		self.net_cifar.load_state_dict(torch.load("model_cifar10.pt"));
 		self.net_cifar.eval();
 
 		class empty: pass;
