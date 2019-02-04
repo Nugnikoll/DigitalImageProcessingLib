@@ -98,6 +98,27 @@ class dimage:
 		self.pos = np.array([0, 0], dtype = np.int32);
 		self.scale = np.array([1, 1], dtype = np.float64);
 
+	def view(self):
+		zero = np.array([0, 0]);
+		size = np.array(self.panel.GetSize())[::-1];
+		shape = np.array(self.data.shape);
+
+		pos = self.pos.astype(np.int32);
+		pos1 = np.maximum(zero, pos);
+		pos2 = np.minimum(size, np.floor(shape[:2] * self.scale + pos).astype(np.int32));
+
+		shape[:2] = pos2 - pos1;
+		if (shape[:2] <= zero).any():
+			return;
+		pos = np.minimum(pos, np.array([0, 0]));
+
+		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+
+		img = dimage(self.panel, data, alpha);
+		img.move(pos1);
+		return img;
+
 	def display(self):
 		dc = wx.ClientDC(self.panel);
 
@@ -119,6 +140,8 @@ class dimage:
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
+
+		self.panel.display_select();
 
 	def move(self, distance):
 		self.pos += distance;
@@ -318,6 +341,9 @@ class panel_draw(wx.Panel):
 
 		self.path = None;
 		self.img = None;
+		self.cache = None;
+		self.pos_select1 = None;
+		self.pos_select2 = None;
 
 		self.flag_down = False;
 		self.thick = 5;
@@ -330,8 +356,9 @@ class panel_draw(wx.Panel):
 		self.s_pencil = 2;
 		self.s_eraser = 3;
 		self.s_picker = 4;
-		self.s_zoom_in = 5;
-		self.s_zoom_out = 6;
+		self.s_selector = 5;
+		self.s_zoom_in = 6;
+		self.s_zoom_out = 7;
 		self.status = self.s_normal;
 
 		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
@@ -363,6 +390,16 @@ class panel_draw(wx.Panel):
 			dc.DestroyClippingRegion();
 			dc.SetClippingRegion(0, h, sw, sh - h);
 			dc.DrawBitmap(self.img_background, (0, 0));
+
+	def display_select(self):
+		if self.pos_select1 is None or self.pos_select2 is None:
+			return;
+		dc = wx.ClientDC(self);
+		dc.SetBrush(wx.Brush(wx.TransparentColour));
+		dc.SetPen(wx.Pen(wx.WHITE, 2));
+		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
+		dc.SetPen(wx.Pen(wx.BLACK, 2, wx.SHORT_DASH));
+		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
 
 	def new_image(self, size):
 		assert(size[0] > 0 and size[1] > 0);
@@ -404,6 +441,8 @@ class panel_draw(wx.Panel):
 			self.SetCursor(self.frame.icon_eraser);
 		elif status == self.s_picker:
 			self.SetCursor(self.frame.icon_picker);
+		elif status == self.s_selector:
+			self.SetCursor(self.frame.icon_selector);
 		elif status == self.s_zoom_in:
 			self.SetCursor(self.frame.icon_zoom_in);
 		elif status == self.s_zoom_out:
@@ -433,6 +472,13 @@ class panel_draw(wx.Panel):
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.pos_list = [pos_img];
+		elif self.status == self.s_selector:
+			pos = np.array(event.GetPosition())[::-1];
+			self.pos_select1 = pos;
+			self.pos_select2 = None;
+			self.cache = self.img.view();
+			self.clear();
+			self.cache.display();
 
 	def on_motion(self, event):
 		if self.img is None:
@@ -467,6 +513,11 @@ class panel_draw(wx.Panel):
 				self.img.move((np.array(pos) - np.array(self.pos)));
 				self.clear();
 				self.img.display();
+			elif self.status == self.s_selector:
+				self.pos_select2 = pos;
+				self.clear();
+				self.cache.display();
+
 		self.pos = pos;
 		self.pos_img = pos_img;
 
@@ -783,6 +834,17 @@ class dipl_frame(wx.Frame):
 		self.icon_picker = wx.Cursor(self.icon_picker);
 		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
 
+		self.id_tool_selector = wx.NewId();
+		self.icon_selector = wx.Image("../icon/select.png");
+		tool_draw.AddTool(
+			self.id_tool_selector, "selector", self.icon_selector.ConvertToBitmap(), shortHelp = "selector"
+		);
+		self.icon_selector = wx.Image("../icon/cross.png");
+		self.icon_selector.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 11);
+		self.icon_selector.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 11);
+		self.icon_selector = wx.Cursor(self.icon_selector);
+		self.Bind(wx.EVT_TOOL, self.on_selector, id = self.id_tool_selector);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -820,8 +882,9 @@ class dipl_frame(wx.Frame):
 		self.s_pencil = 2;
 		self.s_eraser = 3;
 		self.s_picker = 4;
-		self.s_zoom_in = 5;
-		self.s_zoom_out = 6;
+		self.s_selector = 5;
+		self.s_zoom_in = 6;
+		self.s_zoom_out = 7;
 
 		self.net_mnist = net_mnist();
 		self.net_mnist.load_state_dict(torch.load("model_mnist.pt"));
@@ -1000,6 +1063,9 @@ class dipl_frame(wx.Frame):
 
 	def on_picker(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_picker);
+
+	def on_selector(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_selector);
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
