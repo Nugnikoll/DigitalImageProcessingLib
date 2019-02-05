@@ -201,6 +201,24 @@ class dimage:
 			dc.DrawPoint(pos_list[0]);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
+	def trim(self):
+		pos1 = self.panel.pos_select1;
+		pos2 = self.panel.pos_select2;
+		if pos1 is None or pos2 is None:
+			return;
+		self.push();
+		pos1, pos2 = np.minimum(pos1, pos2), np.maximum(pos1, pos2);
+		pos1 = np.floor((pos1 - self.pos) / self.scale);
+		pos2 = np.floor((pos2 - self.pos) / self.scale);
+		shape = self.data.shape[:2];
+		pos1 = np.maximum(pos1, (0, 0));
+		pos2 = np.minimum(pos2, shape);
+		self.data = self.data[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1]), :].copy();
+		self.alpha = self.alpha[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1])].copy();
+		self.pos += (pos1 * self.scale).astype(np.int32);
+		self.panel.pos_select1 = None;
+		self.panel.pos_select2 = None;
+
 	def resize_near(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
