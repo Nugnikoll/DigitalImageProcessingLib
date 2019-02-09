@@ -137,8 +137,12 @@ class dimage:
 			return;
 		pos = np.minimum(pos, np.array([0, 0]));
 
-		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		if self.scale[0] == 1:
+			data = self.data[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1], :];
+			alpha = self.alpha[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1]];
+		else:
+			data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+			alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
@@ -189,14 +193,17 @@ class dimage:
 			dc.DrawPoint(pos_list[0]);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
-	def erase_lines(self, pos_list):
+	def erase_lines(self, pos_list, thick = None):
 		self.push();
 		pos_list = [i[::-1] for i in pos_list];
 
 		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
+		if thick is None:
+			dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
+		else:
+			dc.SetPen(wx.Pen(wx.BLACK, thick));
 		if len(pos_list) > 1:
 			dc.DrawLines(pos_list);
 		else:
@@ -488,17 +495,21 @@ class panel_draw(wx.Panel):
 				self.color = wx.Colour(color);
 				self.frame.button_color.SetBackgroundColour(self.color);
 				self.frame.SetStatusText(str(color), 0);
-		elif self.status == self.s_pencil or self.status == self.s_eraser:
+		elif self.status == self.s_pencil:
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.pos_list = [pos_img];
+		elif self.status == self.s_eraser:
+			pos = np.array(event.GetPosition())[::-1];
+			pos_img = (pos - self.img.pos) / self.img.scale;
+			self.pos = pos;
+			self.pos_list = [pos_img];
+			self.cache = self.img.view();
 		elif self.status == self.s_selector:
 			pos = np.array(event.GetPosition())[::-1];
 			self.pos_select1 = pos;
 			self.pos_select2 = None;
 			self.cache = self.img.view();
-			self.clear();
-			self.cache.display();
 
 	def on_motion(self, event):
 		if self.img is None:
@@ -520,15 +531,12 @@ class panel_draw(wx.Panel):
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
 				self.pos_list.append(pos_img);
 			elif self.status == self.s_eraser:
-				dc = wx.ClientDC(self);
-				dc.SetClippingRegion(
-					self.img.pos[1], self.img.pos[0],
-					m.floor(self.img.data.shape[1] * self.img.scale[0]),
-					m.floor(self.img.data.shape[0] * self.img.scale[0])
-				);
-				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
-				dc.DrawLine(self.pos[::-1], pos[::-1]);
 				self.pos_list.append(pos_img);
+				self.cache.erase_lines(
+					[self.pos - self.cache.pos, pos - self.cache.pos],
+					thick = self.thick * self.img.scale[0]
+				);
+				self.cache.display();
 			elif self.status == self.s_grab:
 				self.img.move((np.array(pos) - np.array(self.pos)));
 				self.clear();
