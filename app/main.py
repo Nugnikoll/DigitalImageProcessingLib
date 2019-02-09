@@ -865,6 +865,14 @@ class dipl_frame(wx.Frame):
 		self.icon_selector = wx.Cursor(self.icon_selector);
 		self.Bind(wx.EVT_TOOL, self.on_selector, id = self.id_tool_selector);
 
+		self.id_trim = wx.NewId();
+		self.icon_trim = wx.Image("../icon/trim.png");
+		tool_draw.AddTool(
+			self.id_trim, "trim", self.icon_trim.ConvertToBitmap(), shortHelp = "trim"
+		);
+		self.icon_trim = wx.Cursor(self.icon_trim);
+		self.Bind(wx.EVT_TOOL, self.on_trim, id = self.id_trim);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -1086,6 +1094,17 @@ class dipl_frame(wx.Frame):
 
 	def on_selector(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_selector);
+
+	def on_trim(self, event):
+		if (
+			self.panel_draw.img is None
+			or self.panel_draw.pos_select1 is None
+			or self.panel_draw.pos_select2 is None
+		):
+			return;
+		self.panel_draw.img.trim();
+		self.panel_draw.clear();
+		self.panel_draw.img.display();
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
