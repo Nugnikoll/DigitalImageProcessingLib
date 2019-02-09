@@ -81,14 +81,16 @@ class dimage:
 			self.data, self.alpha = self.record.pop();
 
 	def create(self, size):
-		self.push();
+		self.backup = [];
+		self.record = [];
 		self.data = np.empty(size, dtype = np.int32);
 		self.data[:] = 255;
 		self.alpha = np.empty(size[:2], dtype = np.int32);
 		self.alpha[:] = 255;
 
 	def load(self, filename):
-		self.push();
+		self.backup = [];
+		self.record = [];
 		self.data, self.alpha = img2numpy(wx.Image(filename));
 
 	def save(self, filename):
