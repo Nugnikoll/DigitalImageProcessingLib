@@ -138,6 +138,7 @@ class dimage:
 		pos = np.minimum(pos, np.array([0, 0]));
 
 		if self.scale[0] == 1:
+			pos = -pos;
 			data = self.data[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1], :];
 			alpha = self.alpha[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1]];
 		else:
