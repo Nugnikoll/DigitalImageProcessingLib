@@ -13,6 +13,7 @@ import numpy as np;
 
 from net_mnist import *;
 from WideResNet import *;
+from net_signs import *;
 sys.path.append("../python");
 import dipl;
 
@@ -80,14 +81,16 @@ class dimage:
 			self.data, self.alpha = self.record.pop();
 
 	def create(self, size):
-		self.push();
+		self.backup = [];
+		self.record = [];
 		self.data = np.empty(size, dtype = np.int32);
 		self.data[:] = 255;
 		self.alpha = np.empty(size[:2], dtype = np.int32);
 		self.alpha[:] = 255;
 
 	def load(self, filename):
-		self.push();
+		self.backup = [];
+		self.record = [];
 		self.data, self.alpha = img2numpy(wx.Image(filename));
 
 	def save(self, filename):
@@ -96,6 +99,27 @@ class dimage:
 	def origin(self):
 		self.pos = np.array([0, 0], dtype = np.int32);
 		self.scale = np.array([1, 1], dtype = np.float64);
+
+	def view(self):
+		zero = np.array([0, 0]);
+		size = np.array(self.panel.GetSize())[::-1];
+		shape = np.array(self.data.shape);
+
+		pos = self.pos.astype(np.int32);
+		pos1 = np.maximum(zero, pos);
+		pos2 = np.minimum(size, np.floor(shape[:2] * self.scale + pos).astype(np.int32));
+
+		shape[:2] = pos2 - pos1;
+		if (shape[:2] <= zero).any():
+			return;
+		pos = np.minimum(pos, np.array([0, 0]));
+
+		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+
+		img = dimage(self.panel, data, alpha);
+		img.move(pos1);
+		return img;
 
 	def display(self):
 		dc = wx.ClientDC(self.panel);
@@ -113,11 +137,18 @@ class dimage:
 			return;
 		pos = np.minimum(pos, np.array([0, 0]));
 
-		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+		if self.scale[0] == 1:
+			pos = -pos;
+			data = self.data[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1], :];
+			alpha = self.alpha[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1]];
+		else:
+			data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
+			alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
 		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
 		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
 		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
+
+		self.panel.display_select();
 
 	def move(self, distance):
 		self.pos += distance;
@@ -163,19 +194,40 @@ class dimage:
 			dc.DrawPoint(pos_list[0]);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
-	def erase_lines(self, pos_list):
+	def erase_lines(self, pos_list, thick = None):
 		self.push();
 		pos_list = [i[::-1] for i in pos_list];
 
 		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
+		if thick is None:
+			dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
+		else:
+			dc.SetPen(wx.Pen(wx.BLACK, thick));
 		if len(pos_list) > 1:
 			dc.DrawLines(pos_list);
 		else:
 			dc.DrawPoint(pos_list[0]);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+
+	def trim(self):
+		pos1 = self.panel.pos_select1;
+		pos2 = self.panel.pos_select2;
+		if pos1 is None or pos2 is None:
+			return;
+		self.push();
+		pos1, pos2 = np.minimum(pos1, pos2), np.maximum(pos1, pos2);
+		pos1 = np.floor((pos1 - self.pos) / self.scale);
+		pos2 = np.floor((pos2 - self.pos) / self.scale);
+		shape = self.data.shape[:2];
+		pos1 = np.maximum(pos1, (0, 0));
+		pos2 = np.minimum(pos2, shape);
+		self.data = self.data[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1]), :].copy();
+		self.alpha = self.alpha[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1])].copy();
+		self.pos += (pos1 * self.scale).astype(np.int32);
+		self.panel.pos_select1 = None;
+		self.panel.pos_select2 = None;
 
 	def resize_near(self, size):
 		self.push();
@@ -317,6 +369,9 @@ class panel_draw(wx.Panel):
 
 		self.path = None;
 		self.img = None;
+		self.cache = None;
+		self.pos_select1 = None;
+		self.pos_select2 = None;
 
 		self.flag_down = False;
 		self.thick = 5;
@@ -329,8 +384,9 @@ class panel_draw(wx.Panel):
 		self.s_pencil = 2;
 		self.s_eraser = 3;
 		self.s_picker = 4;
-		self.s_zoom_in = 5;
-		self.s_zoom_out = 6;
+		self.s_selector = 5;
+		self.s_zoom_in = 6;
+		self.s_zoom_out = 7;
 		self.status = self.s_normal;
 
 		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
@@ -362,6 +418,16 @@ class panel_draw(wx.Panel):
 			dc.DestroyClippingRegion();
 			dc.SetClippingRegion(0, h, sw, sh - h);
 			dc.DrawBitmap(self.img_background, (0, 0));
+
+	def display_select(self):
+		if self.pos_select1 is None or self.pos_select2 is None:
+			return;
+		dc = wx.ClientDC(self);
+		dc.SetBrush(wx.Brush(wx.TransparentColour));
+		dc.SetPen(wx.Pen(wx.WHITE, 2));
+		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
+		dc.SetPen(wx.Pen(wx.BLACK, 2, wx.SHORT_DASH));
+		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
 
 	def new_image(self, size):
 		assert(size[0] > 0 and size[1] > 0);
@@ -403,6 +469,8 @@ class panel_draw(wx.Panel):
 			self.SetCursor(self.frame.icon_eraser);
 		elif status == self.s_picker:
 			self.SetCursor(self.frame.icon_picker);
+		elif status == self.s_selector:
+			self.SetCursor(self.frame.icon_selector);
 		elif status == self.s_zoom_in:
 			self.SetCursor(self.frame.icon_zoom_in);
 		elif status == self.s_zoom_out:
@@ -428,10 +496,21 @@ class panel_draw(wx.Panel):
 				self.color = wx.Colour(color);
 				self.frame.button_color.SetBackgroundColour(self.color);
 				self.frame.SetStatusText(str(color), 0);
-		elif self.status == self.s_pencil or self.status == self.s_eraser:
+		elif self.status == self.s_pencil:
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.pos_list = [pos_img];
+		elif self.status == self.s_eraser:
+			pos = np.array(event.GetPosition())[::-1];
+			pos_img = (pos - self.img.pos) / self.img.scale;
+			self.pos = pos;
+			self.pos_list = [pos_img];
+			self.cache = self.img.view();
+		elif self.status == self.s_selector:
+			pos = np.array(event.GetPosition())[::-1];
+			self.pos_select1 = pos;
+			self.pos_select2 = None;
+			self.cache = self.img.view();
 
 	def on_motion(self, event):
 		if self.img is None:
@@ -453,19 +532,21 @@ class panel_draw(wx.Panel):
 				dc.DrawLine(self.pos[::-1], pos[::-1]);
 				self.pos_list.append(pos_img);
 			elif self.status == self.s_eraser:
-				dc = wx.ClientDC(self);
-				dc.SetClippingRegion(
-					self.img.pos[1], self.img.pos[0],
-					m.floor(self.img.data.shape[1] * self.img.scale[0]),
-					m.floor(self.img.data.shape[0] * self.img.scale[0])
-				);
-				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
-				dc.DrawLine(self.pos[::-1], pos[::-1]);
 				self.pos_list.append(pos_img);
+				self.cache.erase_lines(
+					[self.pos - self.cache.pos, pos - self.cache.pos],
+					thick = self.thick * self.img.scale[0]
+				);
+				self.cache.display();
 			elif self.status == self.s_grab:
 				self.img.move((np.array(pos) - np.array(self.pos)));
 				self.clear();
 				self.img.display();
+			elif self.status == self.s_selector:
+				self.pos_select2 = pos;
+				self.clear();
+				self.cache.display();
+
 		self.pos = pos;
 		self.pos_img = pos_img;
 
@@ -497,6 +578,9 @@ class panel_draw(wx.Panel):
 		elif self.status == self.s_eraser:
 			self.img.erase_lines(self.pos_list);
 			self.img.display();
+		elif self.status == self.s_selector:
+			self.clear();
+			self.cache.display();
 
 class panel_info(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
@@ -634,7 +718,8 @@ class dipl_frame(wx.Frame):
 				"Salt-and-pepper Noise",
 				"Median Filter",
 				"MNIST CNN classification",
-				"CIFAR-10 classification"
+				"CIFAR-10 classification",
+				"SIGNS hand guesture classification"
 			],
 		);
 		self.choice_transform.SetSelection(0);
@@ -781,6 +866,25 @@ class dipl_frame(wx.Frame):
 		self.icon_picker = wx.Cursor(self.icon_picker);
 		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
 
+		self.id_tool_selector = wx.NewId();
+		self.icon_selector = wx.Image("../icon/select.png");
+		tool_draw.AddTool(
+			self.id_tool_selector, "selector", self.icon_selector.ConvertToBitmap(), shortHelp = "selector"
+		);
+		self.icon_selector = wx.Image("../icon/cross.png");
+		self.icon_selector.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 11);
+		self.icon_selector.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 11);
+		self.icon_selector = wx.Cursor(self.icon_selector);
+		self.Bind(wx.EVT_TOOL, self.on_selector, id = self.id_tool_selector);
+
+		self.id_trim = wx.NewId();
+		self.icon_trim = wx.Image("../icon/trim.png");
+		tool_draw.AddTool(
+			self.id_trim, "trim", self.icon_trim.ConvertToBitmap(), shortHelp = "trim"
+		);
+		self.icon_trim = wx.Cursor(self.icon_trim);
+		self.Bind(wx.EVT_TOOL, self.on_trim, id = self.id_trim);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -818,20 +922,30 @@ class dipl_frame(wx.Frame):
 		self.s_pencil = 2;
 		self.s_eraser = 3;
 		self.s_picker = 4;
-		self.s_zoom_in = 5;
-		self.s_zoom_out = 6;
-
-		#define a function which prints strings on text_term
-		global _print;
-		_print = lambda *args: self.panel_info.text_term.AppendText(" ".join([str(x) for x in args]) + "\n");
+		self.s_selector = 5;
+		self.s_zoom_in = 6;
+		self.s_zoom_out = 7;
 
 		self.net_mnist = net_mnist();
 		self.net_mnist.load_state_dict(torch.load("model_mnist.pt"));
 		self.net_mnist.eval();
 
-		self.net_cifar = WideResNet(depth=28, num_classes=10);
-		self.net_cifar.load_state_dict(torch.load("cifar10_model.pth"));
+		self.net_cifar = WideResNet(depth = 28, num_classes = 10);
+		self.net_cifar.load_state_dict(torch.load("model_cifar10.pt"));
 		self.net_cifar.eval();
+
+		class empty: pass;
+		param = empty();
+		param.learning_rate = 1e-3;
+		param.batch_size = 64;
+		param.num_epochs = 100;
+		param.dropout_rate = 0.8; 
+		param.num_channels = 32;
+		param.save_summary_steps = 100;
+		param.num_workers = 8;
+		self.net_signs = net_signs(param);
+		self.net_signs.load_state_dict(torch.load("model_signs.pt")["state_dict"]);
+		self.net_signs.eval();
 
 	def Destroy(self):
 		self.manager.UnInit();
@@ -989,6 +1103,20 @@ class dipl_frame(wx.Frame):
 
 	def on_picker(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_picker);
+
+	def on_selector(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_selector);
+
+	def on_trim(self, event):
+		if (
+			self.panel_draw.img is None
+			or self.panel_draw.pos_select1 is None
+			or self.panel_draw.pos_select2 is None
+		):
+			return;
+		self.panel_draw.img.trim();
+		self.panel_draw.clear();
+		self.panel_draw.img.display();
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
@@ -1157,6 +1285,17 @@ class dipl_frame(wx.Frame):
 			return;
 		num += 1;
 
+		if sel == num:
+			self.text_input_info1.Show();
+			self.text_input_info1.SetLabel(" number:  ")
+			self.text_input_info2.Hide();
+			self.text_input1.Hide();
+			self.text_input2.Hide();
+			self.text_input_info3.Hide();
+			self.text_input3.Hide();
+			return;
+		num += 1;
+
 	def on_transform(self, event):
 		if self.panel_draw.img is None:
 			return;
@@ -1282,6 +1421,20 @@ class dipl_frame(wx.Frame):
 			prob, result = result.max(dim = 0);
 			class_name = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck');
 			self.text_input_info1.SetLabel(" object: %s value: %.4f" % (class_name[result.data.item()], prob.data.item()));
+			return;
+		num += 1;
+
+		if sel == num:
+			img = self.panel_draw.img.copy();
+			img.resize_linear((64, 64));
+			data = img.data / 255;
+			data = data.reshape((1, 64, 64, 3));
+			data = np.rollaxis(data, 3, 1)
+			data = Variable(torch.Tensor(data));
+			result = self.net_signs(data).reshape(6);
+			print(result)
+			prob, result = result.max(dim = 0);
+			self.text_input_info1.SetLabel(" number: %d value: %.4f" % (result.data.item(), prob.data.item()));
 			return;
 		num += 1;
 
