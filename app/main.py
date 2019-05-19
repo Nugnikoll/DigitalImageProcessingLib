@@ -578,6 +578,9 @@ class panel_draw(wx.Panel):
 		elif self.status == self.s_eraser:
 			self.img.erase_lines(self.pos_list);
 			self.img.display();
+		elif self.status == self.s_selector:
+			self.clear();
+			self.cache.display();
 
 class panel_info(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
