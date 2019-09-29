@@ -9,332 +9,12 @@ import copy;
 import math as m;
 import traceback;
 from matplotlib import pyplot as plt;
-import numpy as np;
 
 from net_mnist import *;
 from WideResNet import *;
 from net_signs import *;
-sys.path.append("../python");
-import dipl;
 
-def img2numpy(wximg):
-	buf = wximg.GetDataBuffer();
-	data = np.array(buf, dtype = np.int32);
-	data = data.reshape((wximg.GetHeight(), wximg.GetWidth(), -1));
-	if wximg.HasAlpha():
-		buf = wximg.GetAlpha();
-		alpha = np.array(buf, dtype = np.int32);
-		alpha = alpha.reshape((wximg.GetHeight(), wximg.GetWidth()));
-	else:
-		alpha = np.empty((wximg.GetHeight(), wximg.GetWidth()), dtype = np.int32);
-		alpha[:] = 255;
-	return data, alpha;
-
-def bitmap2numpy(wximg):
-	img = wximg.ConvertToImage();
-	buf = img.GetDataBuffer();
-	data = np.array(buf, dtype = np.int32);
-	data = data.reshape((img.GetHeight(), img.GetWidth(), -1));
-	return data;
-
-def numpy2img(data, alpha):
-	buf = data.ravel().astype(np.uint8).tobytes();
-	buf_alpha = alpha.ravel().astype(np.uint8).tobytes();
-	wximg = wx.Image(data.shape[1], data.shape[0], buf, buf_alpha);
-	return wximg;
-
-def numpy2bitmap(data):
-	buf = data.ravel().astype(np.uint8).tobytes();
-	wximg = wx.Image(data.shape[1], data.shape[0], buf).ConvertToBitmap();
-	return wximg;
-
-def bezier(trace, t):
-	n = len(trace);
-	x = 0;
-	for i in range(n):
-		ii = n - i - 1;
-		x += (
-			trace[i] * t ** i * (1 - t) ** ii
-			* (m.factorial(n - 1) // m.factorial(i) // m.factorial(ii))
-		);
-	return x;
-
-class dimage:
-	def __init__(self, panel = None, data = None, alpha = None):
-		self.data = data;
-		self.alpha = alpha;
-		self.pos = np.array([0, 0], dtype = np.int32);
-		self.scale = np.array([1, 1], dtype = np.float64);
-		self.panel = panel;
-		self.backup = [];
-		self.record = [];
-
-	def copy(self):
-		img = dimage(self.panel, self.data.copy(), self.alpha.copy());
-		return img;
-
-	def push(self):
-		if not self.data is None:
-			self.record = [];
-			self.backup.append((self.data, self.alpha));
-
-	def pop(self):
-		self.data, self.alpha = self.backup.pop();
-
-	def undo(self):
-		if len(self.backup) != 0:
-			self.record.append((self.data, self.alpha));
-			self.pop();
-
-	def redo(self):
-		if len(self.record) != 0:
-			self.backup.append((self.data, self.alpha));
-			self.data, self.alpha = self.record.pop();
-
-	def create(self, size):
-		self.backup = [];
-		self.record = [];
-		self.data = np.empty(size, dtype = np.int32);
-		self.data[:] = 255;
-		self.alpha = np.empty(size[:2], dtype = np.int32);
-		self.alpha[:] = 255;
-
-	def load(self, filename):
-		self.backup = [];
-		self.record = [];
-		self.data, self.alpha = img2numpy(wx.Image(filename));
-
-	def save(self, filename):
-		numpy2img(self.data, self.alpha).SaveFile(filename);
-
-	def origin(self):
-		self.pos = np.array([0, 0], dtype = np.int32);
-		self.scale = np.array([1, 1], dtype = np.float64);
-
-	def view(self):
-		zero = np.array([0, 0]);
-		size = np.array(self.panel.GetSize())[::-1];
-		shape = np.array(self.data.shape);
-
-		pos = self.pos.astype(np.int32);
-		pos1 = np.maximum(zero, pos);
-		pos2 = np.minimum(size, np.floor(shape[:2] * self.scale + pos).astype(np.int32));
-
-		shape[:2] = pos2 - pos1;
-		if (shape[:2] <= zero).any():
-			return;
-		pos = np.minimum(pos, np.array([0, 0]));
-
-		data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-
-		img = dimage(self.panel, data, alpha);
-		img.move(pos1);
-		return img;
-
-	def display(self):
-		dc = wx.ClientDC(self.panel);
-
-		zero = np.array([0, 0]);
-		size = np.array(self.panel.GetSize())[::-1];
-		shape = np.array(self.data.shape);
-
-		pos = self.pos.astype(np.int32);
-		pos1 = np.maximum(zero, pos);
-		pos2 = np.minimum(size, np.floor(shape[:2] * self.scale + pos).astype(np.int32));
-
-		shape[:2] = pos2 - pos1;
-		if (shape[:2] <= zero).any():
-			return;
-		pos = np.minimum(pos, np.array([0, 0]));
-
-		if self.scale[0] == 1:
-			pos = -pos;
-			data = self.data[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1], :];
-			alpha = self.alpha[pos[0]: pos[0] + shape[0], pos[1]: pos[1] + shape[1]];
-		else:
-			data = dipl.map_linear3(self.data, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-			alpha = dipl.map_linear(self.alpha, int(shape[0]), int(shape[1]), int(pos[0]), int(pos[1]), self.scale[0]);
-		alpha = (alpha / 255).reshape(shape[0], shape[1], 1);
-		data = data * alpha + self.panel.data_background[pos1[0]: pos2[0], pos1[1]: pos2[1]] * (1 - alpha);
-		dc.DrawBitmap(numpy2bitmap(data), pos1[1], pos1[0]);
-
-		self.panel.display_select();
-
-	def move(self, distance):
-		self.pos += distance;
-
-	def rescale(self, pos, scale):
-		np_pos = np.array(pos);
-		np_scale = np.array(scale);
-		self.pos = (np_pos + np_scale * (self.pos - np_pos)).astype(np.int32);
-		self.scale *= np_scale;
-
-	def zoom_fit(self, size):
-		h = self.data.shape[0];
-		w = self.data.shape[1];
-		(sh, sw) = size;
-		if h * sw > w * sh:
-			self.scale = np.array([sh / h, sh / h]);
-			self.pos = np.array((0, (sw - sh * w / h) / 2), dtype = np.int32);
-		else:
-			self.scale = np.array([sw / w, sw / w]);
-			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
-
-	def draw_lines(self, pos_list):
-		self.push();
-		pos_list = [i[::-1] for i in pos_list];
-
-		img = numpy2bitmap(self.data);
-		dc = wx.MemoryDC();
-		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(self.panel.color, self.panel.thick));
-		if len(pos_list) > 1:
-			dc.DrawLines(pos_list);
-		else:
-			dc.DrawPoint(pos_list[0]);
-		self.data = bitmap2numpy(img);
-
-		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
-		dc = wx.MemoryDC();
-		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
-		if len(pos_list) > 1:
-			dc.DrawLines(pos_list);
-		else:
-			dc.DrawPoint(pos_list[0]);
-		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
-
-	def erase_lines(self, pos_list, thick = None):
-		self.push();
-		pos_list = [i[::-1] for i in pos_list];
-
-		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
-		dc = wx.MemoryDC();
-		dc.SelectObject(img);
-		if thick is None:
-			dc.SetPen(wx.Pen(wx.BLACK, self.panel.thick));
-		else:
-			dc.SetPen(wx.Pen(wx.BLACK, thick));
-		if len(pos_list) > 1:
-			dc.DrawLines(pos_list);
-		else:
-			dc.DrawPoint(pos_list[0]);
-		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
-
-	def trim(self):
-		pos1 = self.panel.pos_select1;
-		pos2 = self.panel.pos_select2;
-		if pos1 is None or pos2 is None:
-			return;
-		self.push();
-		pos1, pos2 = np.minimum(pos1, pos2), np.maximum(pos1, pos2);
-		pos1 = np.floor((pos1 - self.pos) / self.scale);
-		pos2 = np.floor((pos2 - self.pos) / self.scale);
-		shape = self.data.shape[:2];
-		pos1 = np.maximum(pos1, (0, 0));
-		pos2 = np.minimum(pos2, shape);
-		self.data = self.data[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1]), :].copy();
-		self.alpha = self.alpha[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1])].copy();
-		self.pos += (pos1 * self.scale).astype(np.int32);
-		self.panel.pos_select1 = None;
-		self.panel.pos_select2 = None;
-
-	def resize_near(self, size):
-		self.push();
-		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.resize_near(self.data[:, :, i].copy(), int(size[0]), int(size[1])); 
-		self.data = result;
-		self.alpha = dipl.resize_near(self.alpha, int(size[0]), int(size[1]));
-
-	def resize_linear(self, size):
-		self.push();
-		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.resize_linear(self.data[:, :, i].copy(), int(size[0]), int(size[1]));
-		self.data = result;
-		self.alpha = dipl.resize_linear(self.alpha, int(size[0]), int(size[1]));
-
-	def equalize(self):
-		self.push();
-		result = np.empty(self.data.shape, dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.equalize(self.data[:, :, i].copy());
-		self.data = result;
-
-	def power_law(self, gamma):
-		self.push();
-		result = np.empty(self.data.shape, dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.power_law(self.data[:, :, i].copy(), gamma);
-		self.data = result;
-
-	def correlate(self, kernel):
-		self.push();
-		shape = [i for i in self.data.shape];
-		shape[0] += kernel.shape[0] - 1;
-		shape[1] += kernel.shape[1] - 1;
-		result = np.empty(shape, dtype = np.float64);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.correlate2(self.data[:, :, i].astype(np.float64), kernel);
-		result[result > 255] = 255;
-		result[result < 0] = 0;
-		result = result.astype(np.int32);
-		shape2 = (np.array(kernel.shape) - 1) // 2;
-		shape3 = (np.array(kernel.shape) - 1) - shape2;
-#		result_next = np.empty((shape[0] - shape2[0], shape[1] - shape2[1], shape[2]));
-#		for i in range(self.data.shape[2]):
-#			result_next[:, :, i] = dipl.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
-		self.data = result[shape3[0]: -shape2[0], shape3[1]: -shape2[1]].copy();
-
-	def sharpen(self, alpha):
-		self.push();
-		result = np.empty(self.data.shape, dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.laplacian(self.data[:, :, i].copy());
-		result = self.data + result * alpha;
-		result[result > 255] = 255;
-		result[result < 0] = 0;
-		result = result.astype(np.int32);
-		self.data = result;
-
-	def laplacian(self):
-		self.push();
-		result = np.empty(self.data.shape, dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.laplacian(self.data[:, :, i].copy());
-		result -= np.min(result);
-		result = result.astype(np.float64) * 255 / max(np.max(result), 1);
-		result = result.astype(np.int32);
-		self.data = result;
-
-	def noise_guass(self, variance):
-		self.push();
-		self.data = self.data.copy();
-		for i in range(self.data.shape[2]):
-			data = self.data[:, :, i].copy();
-			dipl.noise_guass(data, variance);
-			self.data[:, :, i] = data;
-		self.data[self.data < 0] = 0;
-		self.data[self.data > 255] = 255;
-
-	def noise_salt(self, probability, value):
-		self.push();
-		self.data = self.data.copy();
-		for i in range(self.data.shape[2]):
-			data = self.data[:, :, i].copy();
-			dipl.noise_salt(data, probability, value);
-			self.data[:, :, i] = data;
-		self.data[self.data < 0] = 0;
-		self.data[self.data > 255] = 255;
-
-	def filter_median(self, kernel_size):
-		self.push();
-		result = np.empty(self.data.shape, dtype = np.int32);
-		for i in range(self.data.shape[2]):
-			result[:, :, i] = dipl.filter_median(self.data[:, :, i].copy(), kernel_size);
-		self.data = result;
+from panel_draw import *;
 
 class dialog_new(wx.Dialog):
 
@@ -362,237 +42,6 @@ class dialog_new(wx.Dialog):
 		button_ok = wx.Button(panel_base, wx.ID_OK , label = "OK");
 		sizer_button.Add(button_ok, 0, wx.ALL | wx.EXPAND, 5);
 
-class panel_draw(wx.Panel):
-
-	def __init__(self, parent, size = wx.DefaultSize):
-		super(panel_draw, self).__init__(parent = parent, size = size);
-		self.frame = parent;
-		while type(self.frame) != dipl_frame:
-			self.frame = self.frame.GetParent();
-		self.SetBackgroundColour(wx.BLACK);
-
-		self.SetCursor(self.frame.icon_normal);
-
-		self.Bind(wx.EVT_PAINT, self.on_paint);
-		self.Bind(wx.EVT_LEFT_UP, self.on_leftup);
-		self.Bind(wx.EVT_MOTION, self.on_motion);
-		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
-
-		self.path = None;
-		self.img = None;
-		self.cache = None;
-		self.pos_select1 = None;
-		self.pos_select2 = None;
-
-		self.flag_down = False;
-		self.thick = 5;
-		self.color = wx.Colour(0, 0, 0);
-		self.pos = (0, 0);
-		self.pos_img = (0, 0);
-
-		self.s_normal = 0;
-		self.s_grab = 1;
-		self.s_pencil = 2;
-		self.s_eraser = 3;
-		self.s_picker = 4;
-		self.s_selector = 5;
-		self.s_zoom_in = 6;
-		self.s_zoom_out = 7;
-		self.status = self.s_normal;
-
-		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
-		screen_h = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_Y) // 8 + 1;
-
-		data = np.array([[[20], [100]],[[100], [20]]]);
-		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
-		data = np.tile(data, (screen_h, screen_w, 1));
-		self.data_background = data;
-		self.img_background = numpy2bitmap(data);
-
-	def clear(self):
-		dc = wx.ClientDC(self);
-		
-		if self.img is None:
-			dc.DrawBitmap(self.img_background, (0, 0));
-		else:
-			sw, sh = self.GetSize();
-			h = self.img.pos[0] + m.floor(self.img.data.shape[0] * self.img.scale[0]); 
-			w = self.img.pos[1] + m.floor(self.img.data.shape[1] * self.img.scale[1]);
-			dc.SetClippingRegion(0, 0, self.img.pos[1], sh);
-			dc.DrawBitmap(self.img_background, (0, 0));
-			dc.DestroyClippingRegion();
-			dc.SetClippingRegion(0, 0, sw, self.img.pos[0]);
-			dc.DrawBitmap(self.img_background, (0, 0));
-			dc.DestroyClippingRegion();
-			dc.SetClippingRegion(w, 0, sw - w, sh);
-			dc.DrawBitmap(self.img_background, (0, 0));
-			dc.DestroyClippingRegion();
-			dc.SetClippingRegion(0, h, sw, sh - h);
-			dc.DrawBitmap(self.img_background, (0, 0));
-
-	def display_select(self):
-		if self.pos_select1 is None or self.pos_select2 is None:
-			return;
-		dc = wx.ClientDC(self);
-		dc.SetBrush(wx.Brush(wx.TransparentColour));
-		dc.SetPen(wx.Pen(wx.WHITE, 2));
-		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
-		dc.SetPen(wx.Pen(wx.BLACK, 2, wx.SHORT_DASH));
-		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
-
-	def new_image(self, size):
-		assert(size[0] > 0 and size[1] > 0);
-		if self.img is None:
-			self.img = dimage(panel = self);
-		else:
-			self.img.origin();
-		self.img.create([size[0], size[1], 3]);
-		self.clear();
-		self.img.display();
-		self.frame.SetStatusText(str(self.img.scale[0]), 1);
-
-	def open_image(self, path):
-		self.path = path;
-		if self.img is None:
-			self.img = dimage(panel = self);
-		else:
-			self.img.origin();
-		self.img.load(self.path);
-		self.clear();
-		self.img.display();
-		self.frame.SetStatusText(str(self.img.scale[0]), 1);
-
-	def save_image(self, path):
-		self.path = path;
-		self.img.save(self.path);
-
-	def set_status(self, status):
-		self.status = status;
-		if status == self.s_normal:
-			#self.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
-			self.SetCursor(self.frame.icon_normal);
-		elif status == self.s_grab:
-			self.SetCursor(self.frame.icon_grab);
-		elif status == self.s_pencil:
-			#self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
-			self.SetCursor(self.frame.icon_pencil);
-		elif status == self.s_eraser:
-			self.SetCursor(self.frame.icon_eraser);
-		elif status == self.s_picker:
-			self.SetCursor(self.frame.icon_picker);
-		elif status == self.s_selector:
-			self.SetCursor(self.frame.icon_selector);
-		elif status == self.s_zoom_in:
-			self.SetCursor(self.frame.icon_zoom_in);
-		elif status == self.s_zoom_out:
-			self.SetCursor(self.frame.icon_zoom_out);
-
-	def on_paint(self, event):
-		self.clear();
-		if not (self.img is None):
-			self.img.display();
-
-	def on_leftdown(self, event):
-		self.flag_down = True;
-		if self.img is None:
-			return;
-		if self.status == self.s_grab:
-			self.SetCursor(self.frame.icon_grabbing);
-		elif self.status == self.s_picker:
-			pos1 = np.array(event.GetPosition())[::-1];
-			pos2 = (pos1 - self.img.pos) / self.img.scale;
-			pos2 = pos2.astype(np.int32);
-			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
-				color = self.img.data[pos2[0], pos2[1], :];
-				self.color = wx.Colour(color);
-				self.frame.button_color.SetBackgroundColour(self.color);
-				self.frame.SetStatusText(str(color), 0);
-		elif self.status == self.s_pencil:
-			pos = np.array(event.GetPosition())[::-1];
-			pos_img = (pos - self.img.pos) / self.img.scale;
-			self.pos_list = [pos_img];
-		elif self.status == self.s_eraser:
-			pos = np.array(event.GetPosition())[::-1];
-			pos_img = (pos - self.img.pos) / self.img.scale;
-			self.pos = pos;
-			self.pos_list = [pos_img];
-			self.cache = self.img.view();
-		elif self.status == self.s_selector:
-			pos = np.array(event.GetPosition())[::-1];
-			self.pos_select1 = pos;
-			self.pos_select2 = None;
-			self.cache = self.img.view();
-
-	def on_motion(self, event):
-		if self.img is None:
-			return;
-
-		pos = np.array(event.GetPosition())[::-1];
-		pos_img = np.floor((pos - self.img.pos) / self.img.scale);
-		self.frame.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
-
-		if self.flag_down:
-			if self.status == self.s_pencil:
-				dc = wx.ClientDC(self);
-				dc.SetClippingRegion(
-					self.img.pos[1], self.img.pos[0],
-					m.floor(self.img.data.shape[1] * self.img.scale[0]),
-					m.floor(self.img.data.shape[0] * self.img.scale[0])
-				);
-				dc.SetPen(wx.Pen(self.color, self.thick * self.img.scale[0]));
-				dc.DrawLine(self.pos[::-1], pos[::-1]);
-				self.pos_list.append(pos_img);
-			elif self.status == self.s_eraser:
-				self.pos_list.append(pos_img);
-				self.cache.erase_lines(
-					[self.pos - self.cache.pos, pos - self.cache.pos],
-					thick = self.thick * self.img.scale[0]
-				);
-				self.cache.display();
-			elif self.status == self.s_grab:
-				self.img.move((np.array(pos) - np.array(self.pos)));
-				self.clear();
-				self.img.display();
-			elif self.status == self.s_selector:
-				self.pos_select2 = pos;
-				self.clear();
-				self.cache.display();
-
-		self.pos = pos;
-		self.pos_img = pos_img;
-
-	def on_leftup(self, event):
-		self.flag_down = False;
-
-		if self.img is None:
-			return;
-
-		if self.status == self.s_grab:
-			self.SetCursor(self.frame.icon_grab);
-		if self.status == self.s_zoom_in:
-			if self.img.scale[0] > 450:
-				return;
-			self.img.rescale(np.array(event.GetPosition())[::-1], 1.2);
-			self.frame.SetStatusText(str(self.img.scale[0]), 1);
-			self.clear();
-			self.img.display();
-		elif self.status == self.s_zoom_out:
-			if self.img.scale[0] < 1e-5:
-				return;
-			self.img.rescale(np.array(event.GetPosition())[::-1], 1/1.2);
-			self.frame.SetStatusText(str(self.img.scale[0]), 1);
-			self.clear();
-			self.img.display();
-		elif self.status == self.s_pencil:
-			self.img.draw_lines(self.pos_list);
-			self.img.display();
-		elif self.status == self.s_eraser:
-			self.img.erase_lines(self.pos_list);
-			self.img.display();
-		elif self.status == self.s_selector:
-			self.clear();
-			self.cache.display();
-
 class panel_info(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
 		super(panel_info, self).__init__(parent = parent, size = size);
@@ -616,7 +65,7 @@ class panel_info(wx.Panel):
 
 	def on_enter(self, event):
 		self.text_term.AppendText(">>" + self.text_input.GetValue() + "\n");
-		self.frame.execute(self.text_input.GetValue());
+		self.frame.process(self.text_input.GetValue());
 
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
@@ -835,10 +284,10 @@ class dipl_frame(wx.Frame):
 		tool_draw = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER | wx.TB_VERTICAL);
 		tool_draw.SetToolBitmapSize(wx.Size(40,40));
 
-		self.button_color = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color.SetBackgroundColour(wx.Colour((0, 0, 0)));
-		self.button_color.Bind(wx.EVT_BUTTON, self.on_color_pick);
-		tool_draw.AddControl(self.button_color);
+		self.button_color_pen = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
+		self.button_color_pen.SetBackgroundColour(wx.Colour((0, 0, 0)));
+		self.button_color_pen.Bind(wx.EVT_BUTTON, self.on_color_pick);
+		tool_draw.AddControl(self.button_color_pen);
 
 		self.id_icon_width = wx.NewId();
 		self.icon_width = wx.Image("../icon/line.png");
@@ -937,6 +386,18 @@ class dipl_frame(wx.Frame):
 		self.s_zoom_in = 6;
 		self.s_zoom_out = 7;
 
+		#redirect io stream
+		class redirect:
+			frame = self;
+			def write(self, buf):
+				self.frame.print_term(buf);
+
+		stdout_save = sys.stdout;
+		stderr_save = sys.stderr;
+		sys.stdout = redirect();
+		sys.stderr = redirect();
+
+		#load models
 		self.net_mnist = net_mnist();
 		self.net_mnist.load_state_dict(torch.load("model_mnist.pt"));
 		self.net_mnist.eval();
@@ -966,21 +427,8 @@ class dipl_frame(wx.Frame):
 	def print_term(self, text):
 		self.panel_info.text_term.AppendText(text);
 
-	def execute(self, script):
-		frame = self;
-		class io_term:
-			def write(self, text):
-				frame.print_term(text);
-		buf = io_term();
-		out_save = sys.stdout;
-		sys.stdout = buf;
-		try:
-			exec(script);
-			sys.stdout = out_save;
-		except:
-			traceback.print_exc(limit = 10, file = buf);
-		finally:
-			sys.stdout = out_save;
+	def process(self, script):
+		exec(script);
 
 	def on_quit(self, event):
 		self.Close();
@@ -1000,6 +448,8 @@ class dipl_frame(wx.Frame):
 	def on_open(self, event):
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
+		if not hasattr(self, "index_image"):
+			self.index_image = 1;
 		dialog = wx.FileDialog(
 			self, message = "Open File", defaultDir = self.path_image,
 			wildcard = (
@@ -1011,9 +461,11 @@ class dipl_frame(wx.Frame):
 			),
 			style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
 		);
+		dialog.SetFilterIndex(self.index_image);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.open_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
+		self.index_image = dialog.GetFilterIndex();
 		dialog.Destroy();
 
 	def on_save(self, event):
@@ -1021,6 +473,8 @@ class dipl_frame(wx.Frame):
 			return;
 		if not hasattr(self, "path_image"):
 			self.path_image = "../img/";
+		if not hasattr(self, "index_image"):
+			self.index_image = 1;
 		dialog = wx.FileDialog(
 			self, message = "Save File",
 			defaultDir = self.path_image,
@@ -1033,9 +487,11 @@ class dipl_frame(wx.Frame):
 			),
 			style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
 		);
+		dialog.SetFilterIndex(self.index_image);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.save_image(dialog.GetPath());
 		self.path_image = dialog.GetDirectory();
+		self.index_image = dialog.GetFilterIndex();
 		dialog.Destroy();
 
 	def on_script(self, event):
@@ -1045,7 +501,7 @@ class dipl_frame(wx.Frame):
 		if dialog.ShowModal() == wx.ID_OK:
 			with open(dialog.GetPath()) as fobj:
 				script = fobj.read();
-			self.execute(script);
+			self.process(script);
 		self.path_script = dialog.GetDirectory();
 		dialog.Destroy();
 
@@ -1145,10 +601,10 @@ class dipl_frame(wx.Frame):
 
 	def on_color_pick(self, event):
 		dialog = wx.ColourDialog(self);
-		dialog.GetColourData().SetColour(self.panel_draw.color);
+		dialog.GetColourData().SetColour(self.panel_draw.color_pen);
 		if dialog.ShowModal() == wx.ID_OK:
-			self.panel_draw.color = dialog.GetColourData().GetColour();
-			self.button_color.SetBackgroundColour(self.panel_draw.color);
+			self.panel_draw.color_pen = dialog.GetColourData().GetColour();
+			self.button_color_pen.SetBackgroundColour(self.panel_draw.color_pen);
 
 	def on_line_width(self, event):
 		#dialog = wx.NumberEntryDialog(self, message = "Please input the line width", prompt = "width:", caption = "line width", value = self.panel_draw.thick, min = 1);

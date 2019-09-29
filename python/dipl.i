@@ -35,11 +35,11 @@
 
 #define ARRAY_2D(TYPE) \
 	%apply (TYPE* INPLACE_ARRAY2, int DIM1, int DIM2) \
-	{(TYPE* ptri, TYPE i1, TYPE i2)}; \
+	{(TYPE* ptri, int i1, int i2)}; \
 	%apply (TYPE* INPLACE_ARRAY2, int DIM1, int DIM2) \
 	{(TYPE* ptrj, int j1, int j2)}; \
 	%apply (TYPE** ARGOUTVIEW_ARRAY2, int* DIM1, int* DIM2) \
-	{(TYPE** ptro, TYPE* o1, TYPE* o2)}; \
+	{(TYPE** ptro, int* o1, int* o2)}; \
 	%apply (TYPE** ARGOUTVIEWM_ARRAY2, int* DIM1, int* DIM2) \
 	{(TYPE** ptrm, int* m1, int* m2)};
 
