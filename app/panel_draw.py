@@ -19,23 +19,23 @@ class panel_draw(wx.Panel):
 		self.path = None;
 		self.img = None;
 		self.cache = None;
-		self.pos_select1 = None;
-		self.pos_select2 = None;
 
 		self.flag_down = False;
 		self.thick = 5;
 		self.color_pen = wx.Colour(0, 0, 0);
+		self.color_brush = wx.Colour(0, 0, 0);
 		self.pos = (0, 0);
-		self.pos_img = (0, 0);
+		self.pos_list = None;
 
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
 		self.s_eraser = 3;
 		self.s_picker = 4;
-		self.s_selector = 5;
-		self.s_zoom_in = 6;
-		self.s_zoom_out = 7;
+		self.s_bucket = 5;
+		self.s_selector = 6;
+		self.s_zoom_in = 7;
+		self.s_zoom_out = 8;
 		self.status = self.s_normal;
 
 		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
@@ -69,14 +69,24 @@ class panel_draw(wx.Panel):
 			dc.DrawBitmap(self.img_background, (0, 0));
 
 	def display_select(self):
-		if self.pos_select1 is None or self.pos_select2 is None:
+		if(
+			self.status != self.s_selector
+			or self.pos_list is None
+			or len(self.pos_list) < 2
+		):
 			return;
+		pos1 = self.pos_list[0];
+		pos2 = self.pos_list[1];
+		if pos1 is None or pos2 is None:
+			return;
+		pos1 = pos1[::-1];
+		pos2 = pos2[::-1];
 		dc = wx.ClientDC(self);
 		dc.SetBrush(wx.Brush(wx.TransparentColour));
 		dc.SetPen(wx.Pen(wx.WHITE, 2));
-		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
+		dc.DrawRectangle(pos1, pos2 - pos1);
 		dc.SetPen(wx.Pen(wx.BLACK, 2, wx.SHORT_DASH));
-		dc.DrawRectangle(self.pos_select1[::-1], (self.pos_select2 - self.pos_select1)[::-1]);
+		dc.DrawRectangle(pos1, pos2 - pos1);
 
 	def new_image(self, size):
 		assert(size[0] > 0 and size[1] > 0);
@@ -118,6 +128,8 @@ class panel_draw(wx.Panel):
 			self.SetCursor(self.frame.icon_eraser);
 		elif status == self.s_picker:
 			self.SetCursor(self.frame.icon_picker);
+		elif status == self.s_bucket:
+			self.SetCursor(self.frame.icon_bucket);
 		elif status == self.s_selector:
 			self.SetCursor(self.frame.icon_selector);
 		elif status == self.s_zoom_in:
@@ -142,8 +154,12 @@ class panel_draw(wx.Panel):
 			pos2 = pos2.astype(np.int32);
 			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
 				color = self.img.data[pos2[0], pos2[1], :];
-				self.color_pen = wx.Colour(color);
-				self.frame.button_color_pen.SetBackgroundColour(self.color_pen);
+				if self.frame.button_pick is self.frame.button_color_pen:
+					self.color_pen = wx.Colour(color);
+					self.frame.button_pick.SetBackgroundColour(self.color_pen);
+				else:
+					self.color_brush = wx.Colour(color);
+					self.frame.button_pick.SetBackgroundColour(self.color_brush);
 				self.frame.SetStatusText(str(color), 0);
 		elif self.status == self.s_pencil:
 			pos = np.array(event.GetPosition())[::-1];
@@ -155,10 +171,14 @@ class panel_draw(wx.Panel):
 			self.pos = pos;
 			self.pos_list = [pos_img];
 			self.cache = self.img.view();
+		elif self.status == self.s_bucket:
+			pos = np.array(event.GetPosition())[::-1];
+			pos_img = (pos - self.img.pos) / self.img.scale;
+			self.img.flood_fill(pos_img, self.color_brush);
+			self.img.display();
 		elif self.status == self.s_selector:
 			pos = np.array(event.GetPosition())[::-1];
-			self.pos_select1 = pos;
-			self.pos_select2 = None;
+			self.pos_list = [pos, None];
 			self.cache = self.img.view();
 
 	def on_motion(self, event):
@@ -192,12 +212,11 @@ class panel_draw(wx.Panel):
 				self.clear();
 				self.img.display();
 			elif self.status == self.s_selector:
-				self.pos_select2 = pos;
+				self.pos_list[1] = pos;
 				self.clear();
 				self.cache.display();
 
 		self.pos = pos;
-		self.pos_img = pos_img;
 
 	def on_leftup(self, event):
 		self.flag_down = False;

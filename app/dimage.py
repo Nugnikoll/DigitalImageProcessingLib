@@ -3,6 +3,7 @@ import os;
 import wx;
 import math as m;
 import numpy as np;
+import time;
 
 sys.path.append("../python");
 import dipl;
@@ -213,8 +214,14 @@ class dimage:
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
 	def trim(self):
-		pos1 = self.panel.pos_select1;
-		pos2 = self.panel.pos_select2;
+		if(
+			self.panel.status != self.panel.s_selector
+			or self.panel.pos_list is None
+			or len(self.panel.pos_list) < 2
+		):
+			return;
+		pos1 = self.panel.pos_list[0];
+		pos2 = self.panel.pos_list[1];
 		if pos1 is None or pos2 is None:
 			return;
 		self.push();
@@ -227,8 +234,17 @@ class dimage:
 		self.data = self.data[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1]), :].copy();
 		self.alpha = self.alpha[int(pos1[0]): int(pos2[0]), int(pos1[1]): int(pos2[1])].copy();
 		self.pos += (pos1 * self.scale).astype(np.int32);
-		self.panel.pos_select1 = None;
-		self.panel.pos_select2 = None;
+		self.panel.pos_list = None;
+
+	def flood_fill(self, pos, color):
+		self.push();
+
+		img = numpy2bitmap(self.data);
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetBrush(wx.Brush(self.panel.color_brush));
+		dc.FloodFill(pos[::-1], self.data[int(pos[0]), int(pos[1])]);
+		self.data = bitmap2numpy(img);
 
 	def resize_near(self, size):
 		self.push();

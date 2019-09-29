@@ -289,6 +289,11 @@ class dipl_frame(wx.Frame):
 		self.button_color_pen.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		tool_draw.AddControl(self.button_color_pen);
 
+		self.button_color_brush = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
+		self.button_color_brush.SetBackgroundColour(wx.Colour((0, 0, 0)));
+		self.button_color_brush.Bind(wx.EVT_BUTTON, self.on_color_pick);
+		tool_draw.AddControl(self.button_color_brush);
+
 		self.id_icon_width = wx.NewId();
 		self.icon_width = wx.Image("../icon/line.png");
 		tool_draw.AddTool(
@@ -325,6 +330,16 @@ class dipl_frame(wx.Frame):
 		);
 		self.icon_picker = wx.Cursor(self.icon_picker);
 		self.Bind(wx.EVT_TOOL, self.on_picker, id = self.id_tool_picker);
+
+		self.id_tool_bucket = wx.NewId();
+		self.icon_bucket = wx.Image("../icon/bucket.png");
+		self.icon_bucket.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 2);
+		self.icon_bucket.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 17);
+		tool_draw.AddTool(
+			self.id_tool_bucket, "bucket", self.icon_bucket.ConvertToBitmap(), shortHelp = "bucket"
+		);
+		self.icon_bucket = wx.Cursor(self.icon_bucket)
+		self.Bind(wx.EVT_TOOL, self.on_bucket, id = self.id_tool_bucket);
 
 		self.id_tool_selector = wx.NewId();
 		self.icon_selector = wx.Image("../icon/select.png");
@@ -377,14 +392,17 @@ class dipl_frame(wx.Frame):
 		self.manager.Update()
 		self.Show(True);
 
+		#declare some variables
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
 		self.s_eraser = 3;
 		self.s_picker = 4;
-		self.s_selector = 5;
-		self.s_zoom_in = 6;
-		self.s_zoom_out = 7;
+		self.s_bucket = 5;
+		self.s_selector = 6;
+		self.s_zoom_in = 7;
+		self.s_zoom_out = 8;
+		self.button_pick = self.button_color_pen;
 
 		#redirect io stream
 		class redirect:
@@ -571,14 +589,17 @@ class dipl_frame(wx.Frame):
 	def on_picker(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_picker);
 
+	def on_bucket(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_bucket);
+
 	def on_selector(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_selector);
 
 	def on_trim(self, event):
 		if (
 			self.panel_draw.img is None
-			or self.panel_draw.pos_select1 is None
-			or self.panel_draw.pos_select2 is None
+			or self.panel_draw.pos_list is None
+			or len(self.panel_draw.pos_list) < 2
 		):
 			return;
 		self.panel_draw.img.trim();
@@ -601,10 +622,18 @@ class dipl_frame(wx.Frame):
 
 	def on_color_pick(self, event):
 		dialog = wx.ColourDialog(self);
-		dialog.GetColourData().SetColour(self.panel_draw.color_pen);
-		if dialog.ShowModal() == wx.ID_OK:
-			self.panel_draw.color_pen = dialog.GetColourData().GetColour();
-			self.button_color_pen.SetBackgroundColour(self.panel_draw.color_pen);
+		if event.GetId() == self.button_color_pen.GetId():
+			self.button_pick = self.button_color_pen;
+			dialog.GetColourData().SetColour(self.panel_draw.color_pen);
+			if dialog.ShowModal() == wx.ID_OK:
+				self.panel_draw.color_pen = dialog.GetColourData().GetColour();
+				self.button_color_pen.SetBackgroundColour(self.panel_draw.color_pen);
+		else:
+			self.button_pick = self.button_color_brush;
+			dialog.GetColourData().SetColour(self.panel_draw.color_brush);
+			if dialog.ShowModal() == wx.ID_OK:
+				self.panel_draw.color_brush = dialog.GetColourData().GetColour();
+				self.button_color_brush.SetBackgroundColour(self.panel_draw.color_brush);
 
 	def on_line_width(self, event):
 		#dialog = wx.NumberEntryDialog(self, message = "Please input the line width", prompt = "width:", caption = "line width", value = self.panel_draw.thick, min = 1);
