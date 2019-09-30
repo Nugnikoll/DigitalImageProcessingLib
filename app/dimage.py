@@ -121,6 +121,12 @@ class dimage:
 
 		img = dimage(self.panel, data, alpha);
 		img.move(pos1);
+		def nop():
+			pass;
+		img.push = nop;
+		img.pop = nop;
+		img.undo = nop;
+		img.redo = nop;
 		return img;
 
 	def display(self):
@@ -172,14 +178,17 @@ class dimage:
 			self.scale = np.array([sw / w, sw / w]);
 			self.pos = np.array(((sh - sw * h / w) / 2, 0), dtype = np.int32);
 
-	def draw_lines(self, pos_list):
+	def draw_lines(self, pos_list, thick = None):
 		self.push();
 		pos_list = [i[::-1] for i in pos_list];
 
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(self.panel.color_pen, self.panel.thick));
+		if thick is None:
+			dc.SetPen(wx.Pen(self.panel.color_pen, self.panel.thick));
+		else:
+			dc.SetPen(wx.Pen(self.panel.color_pen, thick));
 		if len(pos_list) > 1:
 			dc.DrawLines(pos_list);
 		else:
@@ -189,7 +198,10 @@ class dimage:
 		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
+		if thick is None:
+			dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
+		else:
+			dc.SetPen(wx.Pen(wx.WHITE, thick));
 		if len(pos_list) > 1:
 			dc.DrawLines(pos_list);
 		else:

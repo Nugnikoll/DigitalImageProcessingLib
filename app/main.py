@@ -295,7 +295,7 @@ class dipl_frame(wx.Frame):
 		tool_draw.AddControl(self.button_color_brush);
 
 		self.id_icon_width = wx.NewId();
-		self.icon_width = wx.Image("../icon/line.png");
+		self.icon_width = wx.Image("../icon/line_width.png");
 		tool_draw.AddTool(
 			self.id_icon_width, "line_width", self.icon_width.ConvertToBitmap(), shortHelp = "line width"
 		);
@@ -360,6 +360,13 @@ class dipl_frame(wx.Frame):
 		self.icon_trim = wx.Cursor(self.icon_trim);
 		self.Bind(wx.EVT_TOOL, self.on_trim, id = self.id_trim);
 
+		self.id_icon_line = wx.NewId();
+		self.icon_line = wx.Image("../icon/line.png");
+		tool_draw.AddTool(
+			self.id_icon_line, "line", self.icon_line.ConvertToBitmap(), shortHelp = "line"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_icon_line);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -400,8 +407,9 @@ class dipl_frame(wx.Frame):
 		self.s_picker = 4;
 		self.s_bucket = 5;
 		self.s_selector = 6;
-		self.s_zoom_in = 7;
-		self.s_zoom_out = 8;
+		self.s_draw = 7
+		self.s_zoom_in = 8;
+		self.s_zoom_out = 9;
 		self.button_pick = self.button_color_pen;
 
 		#redirect io stream
@@ -605,6 +613,9 @@ class dipl_frame(wx.Frame):
 		self.panel_draw.img.trim();
 		self.panel_draw.clear();
 		self.panel_draw.img.display();
+
+	def on_draw(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_draw);
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);

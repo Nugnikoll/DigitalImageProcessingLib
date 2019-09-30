@@ -34,9 +34,15 @@ class panel_draw(wx.Panel):
 		self.s_picker = 4;
 		self.s_bucket = 5;
 		self.s_selector = 6;
-		self.s_zoom_in = 7;
-		self.s_zoom_out = 8;
+		self.s_draw = 7
+		self.s_zoom_in = 8;
+		self.s_zoom_out = 9;
 		self.status = self.s_normal;
+
+		self.sd_line = 0;
+		self.sd_square = 1;
+		self.sd_circle = 2;
+		self.status_draw = self.sd_line;
 
 		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
 		screen_h = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_Y) // 8 + 1;
@@ -132,6 +138,9 @@ class panel_draw(wx.Panel):
 			self.SetCursor(self.frame.icon_bucket);
 		elif status == self.s_selector:
 			self.SetCursor(self.frame.icon_selector);
+		elif status == self.s_draw:
+			self.SetCursor(self.frame.icon_selector);
+			self.pos_list = None;
 		elif status == self.s_zoom_in:
 			self.SetCursor(self.frame.icon_zoom_in);
 		elif status == self.s_zoom_out:
@@ -180,6 +189,14 @@ class panel_draw(wx.Panel):
 			pos = np.array(event.GetPosition())[::-1];
 			self.pos_list = [pos, None];
 			self.cache = self.img.view();
+		elif self.status == self.s_draw:
+			if self.status_draw == self.sd_line:
+				pos = np.array(event.GetPosition())[::-1];
+				if self.pos_list is None or len(self.pos_list) == 2:
+					self.pos_list = [pos];
+				else:
+					self.pos_list.append(pos);
+			self.cache = self.img.view();
 
 	def on_motion(self, event):
 		if self.img is None:
@@ -216,6 +233,16 @@ class panel_draw(wx.Panel):
 				self.clear();
 				self.cache.display();
 
+		if self.status == self.s_draw:
+			if not self.pos_list is None:
+				self.clear();
+				self.cache.display();
+				if self.status_draw == self.sd_line:
+					dc = wx.ClientDC(self);
+					dc.SetPen(wx.Pen(self.color_pen, self.thick * self.img.scale[0]));
+					if len(self.pos_list) == 1:
+						dc.DrawLine(self.pos_list[0][::-1], pos[::-1]);
+
 		self.pos = pos;
 
 	def on_leftup(self, event):
@@ -249,3 +276,10 @@ class panel_draw(wx.Panel):
 		elif self.status == self.s_selector:
 			self.clear();
 			self.cache.display();
+		elif self.status == self.s_draw:
+			if self.status_draw == self.sd_line:
+				if not self.pos_list is None and len(self.pos_list) == 2:
+					pos_list = [(i - self.img.pos) / self.img.scale for i in self.pos_list];
+					self.img.draw_lines(pos_list);
+					self.img.display();
+					self.pos_list = None;
