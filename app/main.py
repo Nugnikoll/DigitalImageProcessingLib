@@ -374,6 +374,13 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_circle);
 
+		self.id_draw_rect = wx.NewId();
+		self.icon_rect = wx.Image("../icon/draw_circle.png");
+		tool_draw.AddTool(
+			self.id_draw_rect, "rectangle", self.icon_rect.ConvertToBitmap(), shortHelp = "draw rectangles"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_rect);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -625,8 +632,8 @@ class dipl_frame(wx.Frame):
 		event_id = event.GetId();
 		if event_id == self.id_draw_line:
 			status_draw = self.panel_draw.sd_line;
-#		elif event_id == self.id_draw_rect:
-#			status_draw = self.panel_draw.sd_rect;
+		elif event_id == self.id_draw_rect:
+			status_draw = self.panel_draw.sd_rect;
 		elif event_id == self.id_draw_circle:
 			status_draw = self.panel_draw.sd_circle
 		self.panel_draw.set_status(self.panel_draw.s_draw, status_draw);

@@ -184,14 +184,18 @@ class panel_draw(wx.Panel):
 		elif self.status == self.s_bucket:
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
-			self.img.flood_fill(pos_img, self.color_brush);
+			self.img.flood_fill(pos_img);
 			self.img.display();
 		elif self.status == self.s_selector:
 			pos = np.array(event.GetPosition())[::-1];
 			self.pos_list = [pos, None];
 			self.cache = self.img.view();
 		elif self.status == self.s_draw:
-			if self.status_draw == self.sd_line or self.status_draw == self.sd_circle:
+			if(
+				self.status_draw == self.sd_line
+				or self.status_draw == self.sd_rect
+				or self.status_draw == self.sd_circle
+			):
 				pos = np.array(event.GetPosition())[::-1];
 				if self.pos_list is None or len(self.pos_list) == 2:
 					self.pos_list = [pos];
@@ -244,6 +248,9 @@ class panel_draw(wx.Panel):
 				if self.status_draw == self.sd_line:
 					if len(self.pos_list) == 1:
 						dc.DrawLine(self.pos_list[0][::-1], pos[::-1]);
+				elif self.status_draw == self.sd_rect:
+					if len(self.pos_list) == 1:
+						dc.DrawRectangle(self.pos_list[0][::-1], pos[::-1] - self.pos_list[0][::-1]);
 				elif self.status_draw == self.sd_circle:
 					if len(self.pos_list) == 1:
 						radius = np.sum((self.pos_list[0] - pos) ** 2);
@@ -283,20 +290,28 @@ class panel_draw(wx.Panel):
 		elif self.status == self.s_selector:
 			self.clear();
 			self.cache.display();
+
 		elif self.status == self.s_draw:
+			flag_display = False;
 			if self.status_draw == self.sd_line:
 				if not self.pos_list is None and len(self.pos_list) == 2:
 					pos_list = [(i - self.img.pos) / self.img.scale for i in self.pos_list];
 					self.img.draw_lines(pos_list);
-					self.clear();
-					self.img.display();
-					self.pos_list = None;
+					flag_display = True;
 			elif self.status_draw == self.sd_circle:
 				if not self.pos_list is None and len(self.pos_list) == 2:
 					pos_list = [(i - self.img.pos) / self.img.scale for i in self.pos_list];
 					radius = np.sum((pos_list[0] - pos_list[1]) ** 2);
 					radius = m.sqrt(float(radius));
 					self.img.draw_circle(pos_list[0], radius);
-					self.clear();
-					self.img.display();
-					self.pos_list = None;
+					flag_display = True;
+			elif self.status_draw == self.sd_rect:
+				if not self.pos_list is None and len(self.pos_list) == 2:
+					pos_list = [(i - self.img.pos) / self.img.scale for i in self.pos_list];
+					self.img.draw_rect(pos_list[0], pos_list[1]);
+					flag_display = True;
+
+			if flag_display:
+				self.clear();
+				self.img.display();
+				self.pos_list = None;
