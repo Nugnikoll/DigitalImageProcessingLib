@@ -67,6 +67,31 @@ class panel_info(wx.Panel):
 		self.text_term.AppendText(">>" + self.text_input.GetValue() + "\n");
 		self.frame.process(self.text_input.GetValue());
 
+class button_color(wx.BitmapButton):
+	def __init__(
+		self, parent, id = -1,
+		pos = wx.DefaultPosition, size = wx.DefaultSize,
+		style = 0
+	):
+		wx.BitmapButton.__init__(self, parent = parent, id = id, pos = pos, size = size);
+
+		data = np.array([[[20], [100]],[[100], [20]]]);
+		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
+		data = np.tile(data, (2, 2, 1));
+		self.data = data[4:22, 4:22, :];
+		self.color = wx.Colour(0, 0, 0, 255);
+		self.Bind(wx.EVT_PAINT, self.on_paint);
+		self.display();
+
+	def on_paint(self, event):
+		self.display();
+
+	def display(self):
+		data = self.data.copy();
+		data = data * (1 - self.color[3] / 255) + np.array(self.color[:3]) * self.color[3] / 255;
+		img = numpy2bitmap(data); 
+		self.SetBitmap(img);
+
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
 		wx.Frame.__init__(self, parent, id, title, pos, size, style);
@@ -284,13 +309,11 @@ class dipl_frame(wx.Frame):
 		tool_draw = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER | wx.TB_VERTICAL);
 		tool_draw.SetToolBitmapSize(wx.Size(40,40));
 
-		self.button_color_pen = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color_pen.SetBackgroundColour(wx.Colour((0, 0, 0)));
+		self.button_color_pen = button_color(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
 		self.button_color_pen.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		tool_draw.AddControl(self.button_color_pen);
 
-		self.button_color_brush = wx.Button(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color_brush.SetBackgroundColour(wx.Colour((0, 0, 0)));
+		self.button_color_brush = button_color(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
 		self.button_color_brush.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		tool_draw.AddControl(self.button_color_brush);
 
@@ -375,7 +398,7 @@ class dipl_frame(wx.Frame):
 		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_circle);
 
 		self.id_draw_rect = wx.NewId();
-		self.icon_rect = wx.Image("../icon/draw_circle.png");
+		self.icon_rect = wx.Image("../icon/draw_rect.png");
 		tool_draw.AddTool(
 			self.id_draw_rect, "rectangle", self.icon_rect.ConvertToBitmap(), shortHelp = "draw rectangles"
 		);
@@ -658,14 +681,24 @@ class dipl_frame(wx.Frame):
 			self.button_pick = self.button_color_pen;
 			dialog.GetColourData().SetColour(self.panel_draw.color_pen);
 			if dialog.ShowModal() == wx.ID_OK:
-				self.panel_draw.color_pen = dialog.GetColourData().GetColour();
-				self.button_color_pen.SetBackgroundColour(self.panel_draw.color_pen);
+				color = dialog.GetColourData().GetColour();
+				self.panel_draw.color_pen = wx.Colour(*color[:3], self.panel_draw.color_pen[3]);
+			dialog = wx.NumberEntryDialog(self, "alpha", "alpha", "alpha", self.panel_draw.color_pen[3], 0, 255);
+			if dialog.ShowModal() == wx.ID_OK:
+				self.panel_draw.color_pen = wx.Colour(*self.panel_draw.color_pen[:3], dialog.GetValue());
+			self.button_color_pen.color = self.panel_draw.color_pen;
+			self.button_color_pen.display();
 		else:
 			self.button_pick = self.button_color_brush;
 			dialog.GetColourData().SetColour(self.panel_draw.color_brush);
 			if dialog.ShowModal() == wx.ID_OK:
-				self.panel_draw.color_brush = dialog.GetColourData().GetColour();
-				self.button_color_brush.SetBackgroundColour(self.panel_draw.color_brush);
+				color = dialog.GetColourData().GetColour();
+				self.panel_draw.color_brush = wx.Colour(*color[:3], self.panel_draw.color_brush[3]);
+			dialog = wx.NumberEntryDialog(self, "alpha", "alpha", "alpha", self.panel_draw.color_brush[3], 0, 255);
+			if dialog.ShowModal() == wx.ID_OK:
+				self.panel_draw.color_brush = wx.Colour(*self.panel_draw.color_brush[:3], dialog.GetValue());
+			self.button_color_brush.color = self.panel_draw.color_brush;
+			self.button_color_brush.display();
 
 	def on_line_width(self, event):
 		#dialog = wx.NumberEntryDialog(self, message = "Please input the line width", prompt = "width:", caption = "line width", value = self.panel_draw.thick, min = 1);

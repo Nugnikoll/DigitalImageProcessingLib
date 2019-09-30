@@ -264,8 +264,8 @@ class dimage:
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(self.panel.color_pen[:3], self.panel.thick));
-		dc.SetBrush(wx.Brush(self.panel.color_brush[:3]));
+		dc.SetPen(wx.Pen(self.panel.color_pen, self.panel.thick));
+		dc.SetBrush(wx.Brush(self.panel.color_brush));
 		dc.DrawCircle(pos[::-1], radius);
 		self.data = bitmap2numpy(img);
 
@@ -273,8 +273,7 @@ class dimage:
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
-		color = wx.Colour((self.panel.color_brush[3]) * 3);
-		dc.SetBrush(wx.Brush(color));
+		dc.SetBrush(wx.Brush(wx.WHITE));
 		dc.DrawCircle(pos[::-1], radius);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
@@ -284,8 +283,8 @@ class dimage:
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(self.panel.color_pen[:3], self.panel.thick));
-		dc.SetBrush(wx.Brush(self.panel.color_brush[:3]));
+		dc.SetPen(wx.Pen(self.panel.color_pen, self.panel.thick));
+		dc.SetBrush(wx.Brush(self.panel.color_brush));
 		dc.DrawRectangle(pos1[::-1], pos2[::-1] - pos1[::-1]);
 		self.data = bitmap2numpy(img);
 
@@ -293,8 +292,7 @@ class dimage:
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
-		color = wx.Colour((self.panel.color_brush[3]) * 3);
-		dc.SetBrush(wx.Brush(color));
+		dc.SetBrush(wx.Brush(wx.WHITE));
 		dc.DrawRectangle(pos1[::-1], pos2[::-1] - pos1[::-1]);
 		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
 
