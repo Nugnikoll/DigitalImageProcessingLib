@@ -258,6 +258,32 @@ class dimage:
 		dc.FloodFill(pos[::-1], self.data[int(pos[0]), int(pos[1])]);
 		self.data = bitmap2numpy(img);
 
+	def draw_circle(self, pos, radius, thick = None):
+		self.push();
+
+		img = numpy2bitmap(self.data);
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		if thick is None:
+			dc.SetPen(wx.Pen(self.panel.color_pen[:3], self.panel.thick));
+		else:
+			dc.SetPen(wx.Pen(self.panel.color_pen[:3], thick));
+		dc.SetBrush(wx.Brush(self.panel.color_brush[:3]));
+		dc.DrawCircle(pos[::-1], radius);
+		self.data = bitmap2numpy(img);
+
+		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		if thick is None:
+			dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
+		else:
+			dc.SetPen(wx.Pen(wx.WHITE, thick));
+		color = wx.Colour((self.panel.color_brush[3]) * 3);
+		dc.SetBrush(wx.Brush(color));
+		dc.DrawCircle(pos[::-1], radius);
+		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+
 	def resize_near(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);

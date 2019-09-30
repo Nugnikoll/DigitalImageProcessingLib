@@ -294,12 +294,12 @@ class dipl_frame(wx.Frame):
 		self.button_color_brush.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		tool_draw.AddControl(self.button_color_brush);
 
-		self.id_icon_width = wx.NewId();
+		self.id_button_width = wx.NewId();
 		self.icon_width = wx.Image("../icon/line_width.png");
 		tool_draw.AddTool(
-			self.id_icon_width, "line_width", self.icon_width.ConvertToBitmap(), shortHelp = "line width"
+			self.id_button_width, "line_width", self.icon_width.ConvertToBitmap(), shortHelp = "line width"
 		);
-		self.Bind(wx.EVT_TOOL, self.on_line_width, id = self.id_icon_width);
+		self.Bind(wx.EVT_TOOL, self.on_line_width, id = self.id_button_width);
 
 		self.id_tool_pencil = wx.NewId();
 		self.icon_pencil = wx.Image("../icon/pencil.png");
@@ -360,12 +360,19 @@ class dipl_frame(wx.Frame):
 		self.icon_trim = wx.Cursor(self.icon_trim);
 		self.Bind(wx.EVT_TOOL, self.on_trim, id = self.id_trim);
 
-		self.id_icon_line = wx.NewId();
+		self.id_draw_line = wx.NewId();
 		self.icon_line = wx.Image("../icon/line.png");
 		tool_draw.AddTool(
-			self.id_icon_line, "line", self.icon_line.ConvertToBitmap(), shortHelp = "line"
+			self.id_draw_line, "line", self.icon_line.ConvertToBitmap(), shortHelp = "draw lines"
 		);
-		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_icon_line);
+		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_line);
+
+		self.id_draw_circle = wx.NewId();
+		self.icon_circle = wx.Image("../icon/draw_circle.png");
+		tool_draw.AddTool(
+			self.id_draw_circle, "circle", self.icon_circle.ConvertToBitmap(), shortHelp = "draw circles"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_circle);
 
 		tool_draw.Realize();
 		self.manager.AddPane(
@@ -615,7 +622,14 @@ class dipl_frame(wx.Frame):
 		self.panel_draw.img.display();
 
 	def on_draw(self, event):
-		self.panel_draw.set_status(self.panel_draw.s_draw);
+		event_id = event.GetId();
+		if event_id == self.id_draw_line:
+			status_draw = self.panel_draw.sd_line;
+#		elif event_id == self.id_draw_rect:
+#			status_draw = self.panel_draw.sd_rect;
+		elif event_id == self.id_draw_circle:
+			status_draw = self.panel_draw.sd_circle
+		self.panel_draw.set_status(self.panel_draw.s_draw, status_draw);
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
@@ -651,7 +665,7 @@ class dipl_frame(wx.Frame):
 		dialog = wx.TextEntryDialog(self, message = "Please input the line width", caption = "line width", value = str(self.panel_draw.thick));
 		if dialog.ShowModal() == wx.ID_OK:
 			thick = float(dialog.GetValue());
-			if thick > 0:
+			if thick >= 0:
 				self.panel_draw.thick = thick;
 
 	def on_choice_transform(self, event):

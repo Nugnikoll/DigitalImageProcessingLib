@@ -40,9 +40,9 @@ class panel_draw(wx.Panel):
 		self.status = self.s_normal;
 
 		self.sd_line = 0;
-		self.sd_square = 1;
+		self.sd_rect = 1;
 		self.sd_circle = 2;
-		self.status_draw = self.sd_line;
+		self.status_draw = None;
 
 		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
 		screen_h = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_Y) // 8 + 1;
@@ -120,8 +120,9 @@ class panel_draw(wx.Panel):
 		self.path = path;
 		self.img.save(self.path);
 
-	def set_status(self, status):
+	def set_status(self, status, status_draw = None):
 		self.status = status;
+		self.status_draw = status_draw;
 		if status == self.s_normal:
 			#self.SetCursor(wx.Cursor(wx.CURSOR_DEFAULT));
 			self.SetCursor(self.frame.icon_normal);
@@ -190,7 +191,7 @@ class panel_draw(wx.Panel):
 			self.pos_list = [pos, None];
 			self.cache = self.img.view();
 		elif self.status == self.s_draw:
-			if self.status_draw == self.sd_line:
+			if self.status_draw == self.sd_line or self.status_draw == self.sd_circle:
 				pos = np.array(event.GetPosition())[::-1];
 				if self.pos_list is None or len(self.pos_list) == 2:
 					self.pos_list = [pos];
@@ -237,11 +238,17 @@ class panel_draw(wx.Panel):
 			if not self.pos_list is None:
 				self.clear();
 				self.cache.display();
+				dc = wx.ClientDC(self);
+				dc.SetPen(wx.Pen(self.color_pen, self.thick * self.img.scale[0]));
+				dc.SetBrush(wx.Brush(self.color_brush));
 				if self.status_draw == self.sd_line:
-					dc = wx.ClientDC(self);
-					dc.SetPen(wx.Pen(self.color_pen, self.thick * self.img.scale[0]));
 					if len(self.pos_list) == 1:
 						dc.DrawLine(self.pos_list[0][::-1], pos[::-1]);
+				elif self.status_draw == self.sd_circle:
+					if len(self.pos_list) == 1:
+						radius = np.sum((self.pos_list[0] - pos) ** 2);
+						radius = m.sqrt(float(radius));
+						dc.DrawCircle(self.pos_list[0][::-1], radius);
 
 		self.pos = pos;
 
@@ -281,5 +288,15 @@ class panel_draw(wx.Panel):
 				if not self.pos_list is None and len(self.pos_list) == 2:
 					pos_list = [(i - self.img.pos) / self.img.scale for i in self.pos_list];
 					self.img.draw_lines(pos_list);
+					self.clear();
+					self.img.display();
+					self.pos_list = None;
+			elif self.status_draw == self.sd_circle:
+				if not self.pos_list is None and len(self.pos_list) == 2:
+					pos_list = [(i - self.img.pos) / self.img.scale for i in self.pos_list];
+					radius = np.sum((pos_list[0] - pos_list[1]) ** 2);
+					radius = m.sqrt(float(radius));
+					self.img.draw_circle(pos_list[0], radius);
+					self.clear();
 					self.img.display();
 					self.pos_list = None;
