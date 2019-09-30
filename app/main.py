@@ -107,6 +107,9 @@ class dipl_frame(wx.Frame):
 		# tell FrameManager to manage this frame
 		self.manager = aui.AuiManager();
 		self.manager.SetManagedWindow(self);
+		self.manager.GetArtProvider().SetMetric(aui.AUI_DOCKART_CAPTION_SIZE, 24);
+		font_caption = wx.Font(14, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, faceName = "consolas");
+		self.manager.GetArtProvider().SetFont(aui.AUI_DOCKART_CAPTION_FONT, font_caption);
 
 		#create a menu bar
 		self.menubar = wx.MenuBar();
@@ -424,7 +427,7 @@ class dipl_frame(wx.Frame):
 			aui.AuiPaneInfo().Name("panel_info").Caption("terminal").Right()
 				.FloatingSize(self.panel_info.GetBestSize()).CloseButton(True)
 				.MinSize((300, 100))
-		);	
+		);
 
 		#add a status bar
 		self.status_bar = wx.StatusBar(self, wx.NewId());
