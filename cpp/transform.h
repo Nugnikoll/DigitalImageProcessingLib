@@ -62,4 +62,6 @@ void noise_salt(ARRAY_2D_IN_I(int), const double& probability, const int& value)
 
 void filter_median(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), const int& kernel_size);
 
+void bezier(ARRAY_1D_OUT_M(double), ARRAY_1D_IN_I(double), int num);
+
 #endif //TRANSFORM_H

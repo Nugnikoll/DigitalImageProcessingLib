@@ -618,3 +618,36 @@ void filter_median(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), const int& kernel_si
 		}
 	}
 }
+
+void bezier(ARRAY_1D_OUT_M(double), ARRAY_1D_IN_I(double), int num){
+	int *table = new int[i1 * i1];
+	for(int i = 0; i != i1; ++i){
+		table[i] = 1;
+		table[i * i1] = 1;
+	}
+	for(int i = 1; i != i1; ++i){
+		for(int j = 1; j != i1 - i; ++j){
+			table[i * i1 + j] = table[(i - 1) * i1 + j] + table[i * i1 + j - 1];
+		}
+	}
+
+	*m1 = num + 1;
+	*ptrm = new double[*m1];
+	memset(*ptrm, 0, sizeof(double) * *m1);
+	double *table_t = new double[*m1];
+	for(int i = 0; i != *m1; ++i){
+		table_t[i] = double(i) / num;
+	}
+
+	for(int i = 0; i != i1; ++i){
+		int ii = i1 - i - 1;
+		int c = table[i * i1 + ii];
+		for(int j = 0; j != *m1; ++j){
+			(*ptrm)[j] += ptri[i] * pow(table_t[j], i) * pow(1 - table_t[j], ii) * c;
+		}
+	}
+
+	delete table;
+	delete table_t;
+}
+
