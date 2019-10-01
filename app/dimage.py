@@ -195,18 +195,19 @@ class dimage:
 			dc.DrawPoint(pos_list[0]);
 		self.data = bitmap2numpy(img);
 
-		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		img = numpy2bitmap(np.zeros(self.data.shape, dtype = np.int32));
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		if thick is None:
-			dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
+			dc.SetPen(wx.Pen(wx.Colour((self.panel.color_pen[3], ) * 3), self.panel.thick));
 		else:
-			dc.SetPen(wx.Pen(wx.WHITE, thick));
+			dc.SetPen(wx.Pen(wx.Colour((self.panel.color_pen[3], ) * 3), thick));
 		if len(pos_list) > 1:
 			dc.DrawLines(pos_list);
 		else:
 			dc.DrawPoint(pos_list[0]);
-		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+		data = bitmap2numpy(img)[:, :, 0];
+		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
 
 	def erase_lines(self, pos_list, thick = None):
 		self.push();
@@ -269,13 +270,14 @@ class dimage:
 		dc.DrawCircle(pos[::-1], radius);
 		self.data = bitmap2numpy(img);
 
-		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		img = numpy2bitmap(np.zeros(self.data.shape, dtype = np.int32));
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
-		dc.SetBrush(wx.Brush(wx.WHITE));
+		dc.SetPen(wx.Pen(wx.Colour((self.panel.color_pen[3], ) * 3), self.panel.thick));
+		dc.SetBrush(wx.Brush(wx.Colour((self.panel.color_brush[3], ) * 3)));
 		dc.DrawCircle(pos[::-1], radius);
-		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+		data = bitmap2numpy(img)[:, :, 0];
+		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
 
 	def draw_rect(self, pos1, pos2):
 		self.push();
@@ -288,13 +290,14 @@ class dimage:
 		dc.DrawRectangle(pos1[::-1], pos2[::-1] - pos1[::-1]);
 		self.data = bitmap2numpy(img);
 
-		img = numpy2bitmap(np.tile(self.alpha.reshape(self.alpha.shape[0], self.alpha.shape[1], 1), (1, 1, 3)));
+		img = numpy2bitmap(np.zeros(self.data.shape, dtype = np.int32));
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetPen(wx.Pen(wx.WHITE, self.panel.thick));
-		dc.SetBrush(wx.Brush(wx.WHITE));
+		dc.SetPen(wx.Pen(wx.Colour((self.panel.color_pen[3], ) * 3), self.panel.thick));
+		dc.SetBrush(wx.Brush(wx.Colour((self.panel.color_brush[3], ) * 3)));
 		dc.DrawRectangle(pos1[::-1], pos2[::-1] - pos1[::-1]);
-		self.alpha = bitmap2numpy(img)[:, :, 0].copy();
+		data = bitmap2numpy(img)[:, :, 0];
+		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
 
 	def resize_near(self, size):
 		self.push();
@@ -339,9 +342,6 @@ class dimage:
 		result = result.astype(np.int32);
 		shape2 = (np.array(kernel.shape) - 1) // 2;
 		shape3 = (np.array(kernel.shape) - 1) - shape2;
-#		result_next = np.empty((shape[0] - shape2[0], shape[1] - shape2[1], shape[2]));
-#		for i in range(self.data.shape[2]):
-#			result_next[:, :, i] = dipl.trim(result[:, :, i].copy(), int(shape3[0]), int(shape2[0]), int(shape3[1]), int(shape2[1]));
 		self.data = result[shape3[0]: -shape2[0], shape3[1]: -shape2[1]].copy();
 
 	def sharpen(self, alpha):

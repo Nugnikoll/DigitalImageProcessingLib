@@ -983,7 +983,7 @@ class dipl_frame(wx.Frame):
 			data = Variable(torch.Tensor(data));
 			result = self.net_cifar(data).reshape(10);
 			prob, result = result.max(dim = 0);
-			class_name = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck');
+			class_name = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck");
 			self.text_input_info1.SetLabel(" object: %s value: %.4f" % (class_name[result.data.item()], prob.data.item()));
 			return;
 		num += 1;
@@ -996,7 +996,6 @@ class dipl_frame(wx.Frame):
 			data = np.rollaxis(data, 3, 1)
 			data = Variable(torch.Tensor(data));
 			result = self.net_signs(data).reshape(6);
-			print(result)
 			prob, result = result.max(dim = 0);
 			self.text_input_info1.SetLabel(" number: %d value: %.4f" % (result.data.item(), prob.data.item()));
 			return;
