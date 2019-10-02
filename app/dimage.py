@@ -39,17 +39,6 @@ def numpy2bitmap(data):
 	wximg = wx.Image(data.shape[1], data.shape[0], buf).ConvertToBitmap();
 	return wximg;
 
-def bezier(trace, t):
-	n = len(trace);
-	x = 0;
-	for i in range(n):
-		ii = n - i - 1;
-		x += (
-			trace[i] * t ** i * (1 - t) ** ii
-			* (m.factorial(n - 1) // m.factorial(i) // m.factorial(ii))
-		);
-	return x;
-
 class dimage:
 	def __init__(self, panel = None, data = None, alpha = None):
 		self.data = data;

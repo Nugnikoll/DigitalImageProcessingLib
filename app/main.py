@@ -387,7 +387,7 @@ class dipl_frame(wx.Frame):
 		self.Bind(wx.EVT_TOOL, self.on_trim, id = self.id_trim);
 
 		self.id_draw_line = wx.NewId();
-		self.icon_line = wx.Image("../icon/line.png");
+		self.icon_line = wx.Image("../icon/draw_line.png");
 		tool_draw.AddTool(
 			self.id_draw_line, "line", self.icon_line.ConvertToBitmap(), shortHelp = "draw lines"
 		);
@@ -406,6 +406,13 @@ class dipl_frame(wx.Frame):
 			self.id_draw_rect, "rectangle", self.icon_rect.ConvertToBitmap(), shortHelp = "draw rectangles"
 		);
 		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_rect);
+
+		self.id_draw_curve = wx.NewId();
+		self.icon_curve = wx.Image("../icon/draw_curve.png");
+		tool_draw.AddTool(
+			self.id_draw_curve, "curve", self.icon_curve.ConvertToBitmap(), shortHelp = "draw bezier curves"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_curve);
 
 		tool_draw.Realize();
 		self.manager.AddPane(
@@ -440,16 +447,6 @@ class dipl_frame(wx.Frame):
 		self.Show(True);
 
 		#declare some variables
-		self.s_normal = 0;
-		self.s_grab = 1;
-		self.s_pencil = 2;
-		self.s_eraser = 3;
-		self.s_picker = 4;
-		self.s_bucket = 5;
-		self.s_selector = 6;
-		self.s_draw = 7
-		self.s_zoom_in = 8;
-		self.s_zoom_out = 9;
 		self.button_pick = self.button_color_pen;
 
 		#redirect io stream
@@ -662,6 +659,8 @@ class dipl_frame(wx.Frame):
 			status_draw = self.panel_draw.sd_rect;
 		elif event_id == self.id_draw_circle:
 			status_draw = self.panel_draw.sd_circle
+		elif event_id == self.id_draw_curve:
+			status_draw = self.panel_draw.sd_curve
 		self.panel_draw.set_status(self.panel_draw.s_draw, status_draw);
 
 	def on_zoom_in(self, event):

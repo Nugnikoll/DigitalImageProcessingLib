@@ -15,6 +15,7 @@ class panel_draw(wx.Panel):
 		self.Bind(wx.EVT_LEFT_UP, self.on_leftup);
 		self.Bind(wx.EVT_MOTION, self.on_motion);
 		self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown);
+		self.Bind(wx.EVT_RIGHT_DOWN, self.on_rightdown);
 
 		self.path = None;
 		self.img = None;
@@ -42,6 +43,7 @@ class panel_draw(wx.Panel):
 		self.sd_line = 0;
 		self.sd_rect = 1;
 		self.sd_circle = 2;
+		self.sd_curve = 3;
 		self.status_draw = None;
 
 		screen_w = wx.SystemSettings.GetMetric(wx.SYS_SCREEN_X) // 8 + 1;
@@ -191,15 +193,20 @@ class panel_draw(wx.Panel):
 			self.pos_list = [pos, None];
 			self.cache = self.img.view();
 		elif self.status == self.s_draw:
+			pos = np.array(event.GetPosition())[::-1];
 			if(
 				self.status_draw == self.sd_line
 				or self.status_draw == self.sd_rect
 				or self.status_draw == self.sd_circle
 			):
-				pos = np.array(event.GetPosition())[::-1];
 				if self.pos_list is None or len(self.pos_list) == 2:
 					self.pos_list = [pos];
 				else:
+					self.pos_list.append(pos);
+			elif(self.status_draw == self.sd_curve):
+				if self.pos_list is None:
+					self.pos_list = [pos];
+				elif len(self.pos_list) <= 20:
 					self.pos_list.append(pos);
 			self.cache = self.img.view();
 
@@ -256,6 +263,18 @@ class panel_draw(wx.Panel):
 						radius = np.sum((self.pos_list[0] - pos) ** 2);
 						radius = m.sqrt(float(radius));
 						dc.DrawCircle(self.pos_list[0][::-1], radius);
+				elif self.status_draw == self.sd_curve:
+					pos_list = self.pos_list.copy();
+					pos_list.append(pos);
+					x = np.array([i[0] for i in pos_list], dtype = np.float64);
+					y = np.array([i[1] for i in pos_list], dtype = np.float64);
+					num = (len(pos_list) - 1) * 10;
+					xx = dipl.bezier(x, num);
+					yy = dipl.bezier(y, num);
+					pos_list = [[yy[i], xx[i]] for i in range(len(xx))];
+					dc.DrawLines(pos_list);
+					pos_list = [[i[1], i[0]] for i in self.pos_list];
+					dc.DrawPointList(pos_list);
 
 		self.pos = pos;
 
@@ -312,6 +331,28 @@ class panel_draw(wx.Panel):
 					flag_display = True;
 
 			if flag_display:
+				self.pos_list = None;
 				self.clear();
 				self.img.display();
+
+	def on_rightdown(self, event):
+		if self.img is None:
+			return;
+
+		pos = np.array(event.GetPosition())[::-1];
+
+		if self.status == self.s_draw:
+			if self.status_draw == self.sd_curve:
+				pos_list = self.pos_list;
+				pos_list.append(pos);
+				pos_list = [(i - self.img.pos) / self.img.scale for i in pos_list];
+				x = np.array([i[0] for i in pos_list], dtype = np.float64);
+				y = np.array([i[1] for i in pos_list], dtype = np.float64);
+				num = (len(pos_list) - 1) * 10;
+				xx = dipl.bezier(x, num);
+				yy = dipl.bezier(y, num);
+				pos_list = [[xx[i], yy[i]] for i in range(len(xx))];
+				self.img.draw_lines(pos_list);
 				self.pos_list = None;
+				self.clear();
+				self.img.display();
