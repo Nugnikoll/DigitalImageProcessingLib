@@ -1,5 +1,6 @@
 import wx;
 import math as m;
+from scipy.ndimage import gaussian_filter1d;
 from dimage import *;
 
 class panel_draw(wx.Panel):
@@ -31,13 +32,14 @@ class panel_draw(wx.Panel):
 		self.s_normal = 0;
 		self.s_grab = 1;
 		self.s_pencil = 2;
-		self.s_eraser = 3;
-		self.s_picker = 4;
-		self.s_bucket = 5;
-		self.s_selector = 6;
-		self.s_draw = 7
-		self.s_zoom_in = 8;
-		self.s_zoom_out = 9;
+		self.s_smooth = 3;
+		self.s_eraser = 4;
+		self.s_picker = 5;
+		self.s_bucket = 6;
+		self.s_selector = 7;
+		self.s_draw = 8;
+		self.s_zoom_in = 9;
+		self.s_zoom_out = 10;
 		self.status = self.s_normal;
 
 		self.sd_line = 0;
@@ -133,6 +135,8 @@ class panel_draw(wx.Panel):
 		elif status == self.s_pencil:
 			#self.SetCursor(wx.Cursor(wx.CURSOR_PENCIL));
 			self.SetCursor(self.frame.icon_pencil);
+		elif status == self.s_smooth:
+			self.SetCursor(self.frame.icon_pencil);
 		elif status == self.s_eraser:
 			self.SetCursor(self.frame.icon_eraser);
 		elif status == self.s_picker:
@@ -173,7 +177,7 @@ class panel_draw(wx.Panel):
 					self.color_brush = wx.Colour(color);
 					self.frame.button_pick.SetBackgroundColour(self.color_brush);
 				self.frame.SetStatusText(str(color), 0);
-		elif self.status == self.s_pencil:
+		elif self.status == self.s_pencil or self.status == self.s_smooth:
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.pos_list = [pos_img];
@@ -219,7 +223,7 @@ class panel_draw(wx.Panel):
 		self.frame.SetStatusText("(%d,%d)->(%d,%d)" % (pos_img[1], pos_img[0], pos[1], pos[0]), 2);
 
 		if self.flag_down:
-			if self.status == self.s_pencil:
+			if self.status == self.s_pencil or self.status == self.s_smooth:
 				dc = wx.ClientDC(self);
 				dc.SetClippingRegion(
 					self.img.pos[1], self.img.pos[0],
@@ -303,6 +307,14 @@ class panel_draw(wx.Panel):
 		elif self.status == self.s_pencil:
 			self.img.draw_lines(self.pos_list);
 			self.img.display();
+		elif self.status == self.s_smooth:
+			x = np.array([i[0] for i in self.pos_list]);
+			y = np.array([i[1] for i in self.pos_list]);
+			x = gaussian_filter1d(x, 3);
+			y = gaussian_filter1d(y, 3);
+			pos_list = [[x[i], y[i]] for i in range(len(x))];
+			self.img.draw_lines(pos_list);
+			self.img.display();	
 		elif self.status == self.s_eraser:
 			self.img.erase_lines(self.pos_list);
 			self.img.display();
@@ -336,7 +348,7 @@ class panel_draw(wx.Panel):
 				self.img.display();
 
 	def on_rightdown(self, event):
-		if self.img is None:
+		if self.img is None or self.pos_list is None:
 			return;
 
 		pos = np.array(event.GetPosition())[::-1];

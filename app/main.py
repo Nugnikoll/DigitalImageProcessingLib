@@ -337,6 +337,13 @@ class dipl_frame(wx.Frame):
 		self.icon_pencil = wx.Cursor(self.icon_pencil)
 		self.Bind(wx.EVT_TOOL, self.on_pencil, id = self.id_tool_pencil);
 
+		self.id_draw_smooth = wx.NewId();
+		self.icon_smooth = wx.Image("../icon/draw_smooth.png");
+		tool_draw.AddTool(
+			self.id_draw_smooth, "smooth", self.icon_smooth.ConvertToBitmap(), shortHelp = "draw smooth curves"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_smooth, id = self.id_draw_smooth);
+
 		self.id_tool_eraser = wx.NewId();
 		self.icon_eraser = wx.Image("../icon/eraser.png");
 		self.icon_eraser.SetOption(wx.IMAGE_OPTION_CUR_HOTSPOT_X, 3);
@@ -627,6 +634,9 @@ class dipl_frame(wx.Frame):
 
 	def on_pencil(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_pencil);
+
+	def on_smooth(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_smooth);
 
 	def on_eraser(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_eraser);
