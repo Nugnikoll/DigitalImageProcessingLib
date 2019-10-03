@@ -308,13 +308,15 @@ class panel_draw(wx.Panel):
 			self.img.draw_lines(self.pos_list);
 			self.img.display();
 		elif self.status == self.s_smooth:
-			x = np.array([i[0] for i in self.pos_list]);
-			y = np.array([i[1] for i in self.pos_list]);
-			x = gaussian_filter1d(x, 3);
-			y = gaussian_filter1d(y, 3);
-			pos_list = [[x[i], y[i]] for i in range(len(x))];
+			pos_list = self.pos_list.copy();
+			pos_list = [pos_list[0]] + pos_list + [pos_list[-1]];
+			x = np.array([i[0] for i in pos_list]);
+			y = np.array([i[1] for i in pos_list]);
+			xx = gaussian_filter1d(x, 3);
+			yy = gaussian_filter1d(y, 3);
+			pos_list = [pos_list[0]] + [[xx[i], yy[i]] for i in range(len(x))] + [pos_list[-1]];
 			self.img.draw_lines(pos_list);
-			self.img.display();	
+			self.img.display();
 		elif self.status == self.s_eraser:
 			self.img.erase_lines(self.pos_list);
 			self.img.display();
