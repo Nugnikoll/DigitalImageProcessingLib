@@ -42,30 +42,6 @@ class dialog_new(wx.Dialog):
 		button_ok = wx.Button(panel_base, wx.ID_OK , label = "OK");
 		sizer_button.Add(button_ok, 0, wx.ALL | wx.EXPAND, 5);
 
-class panel_info(wx.Panel):
-	def __init__(self, parent, size = wx.DefaultSize):
-		super(panel_info, self).__init__(parent = parent, size = size);
-		self.frame = parent;
-		while type(self.frame) != dipl_frame:
-			self.frame = self.frame.GetParent();
-		self.SetBackgroundColour(wx.BLACK);
-
-		sizer_base = wx.BoxSizer(wx.VERTICAL);
-		self.SetSizer(sizer_base);
-
-		self.text_term = wx.TextCtrl(self, wx.NewId(), size = (300, 200), style = wx.TE_READONLY | wx.TE_MULTILINE | wx.HSCROLL);
-		self.text_term.SetBackgroundColour(wx.Colour(20, 20, 20));
-		self.text_term.SetForegroundColour(wx.Colour(210, 210, 210));
-		sizer_base.Add(self.text_term, 1, wx.CENTER | wx.EXPAND, 0);
-		self.text_input = wx.TextCtrl(self, wx.NewId(), size = (300, -1), style = wx.TE_PROCESS_ENTER);
-		self.text_input.SetBackgroundColour(wx.Colour(20, 20, 20));
-		self.text_input.SetForegroundColour(wx.Colour(210, 210, 210));
-		self.text_input.Bind(wx.EVT_TEXT_ENTER, self.on_enter);
-		sizer_base.Add(self.text_input, 0, wx.CENTER | wx.EXPAND, 0);
-
-	def on_enter(self, event):
-		self.text_term.AppendText(">>" + self.text_input.GetValue() + "\n");
-		self.frame.process(self.text_input.GetValue());
 
 class button_color(wx.BitmapButton):
 	def __init__(
@@ -91,6 +67,87 @@ class button_color(wx.BitmapButton):
 		data = data * (1 - self.color[3] / 255) + np.array(self.color[:3]) * self.color[3] / 255;
 		img = numpy2bitmap(data); 
 		self.SetBitmap(img);
+
+class panel_style(wx.Panel):
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_style, self).__init__(parent = parent, size = size);
+		self.frame = parent;
+		self.SetBackgroundColour(wx.Colour(100, 100, 100));
+
+		sizer_base = wx.BoxSizer(wx.VERTICAL);
+		self.SetSizer(sizer_base);
+
+		sizer_pen = wx.BoxSizer(wx.HORIZONTAL);
+		sizer_base.Add(sizer_pen, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.button_color_pen = button_color(self, size = wx.Size(30,30), style = wx.SUNKEN_BORDER);
+		self.button_color_pen.Bind(wx.EVT_BUTTON, self.on_color_pick);
+		sizer_pen.Add(self.button_color_pen, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.slider_pen = wx.Slider(self, size = wx.Size(90, 10), value = 255, minValue = 0, maxValue = 255);
+		self.slider_pen.Bind(wx.EVT_SCROLL, self.on_slider_scroll);
+		sizer_pen.Add(self.slider_pen, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		sizer_brush = wx.BoxSizer(wx.HORIZONTAL);
+		sizer_base.Add(sizer_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.button_color_brush = button_color(self, size = wx.Size(30,30), style = wx.SUNKEN_BORDER );
+		self.button_color_brush.Bind(wx.EVT_BUTTON, self.on_color_pick);
+		sizer_brush.Add(self.button_color_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.slider_brush = wx.Slider(self, size = wx.Size(90, 10), value = 255, minValue = 0, maxValue = 255);
+		self.slider_brush.Bind(wx.EVT_SCROLL, self.on_slider_scroll);
+		sizer_brush.Add(self.slider_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+	def on_color_pick(self, event):
+		dialog = wx.ColourDialog(self);
+		if event.GetId() == self.button_color_pen.GetId():
+			self.frame.button_pick = self.button_color_pen;
+			dialog.GetColourData().SetColour(self.frame.panel_draw.color_pen);
+			if dialog.ShowModal() == wx.ID_OK:
+				color = dialog.GetColourData().GetColour();
+				self.frame.panel_draw.color_pen = wx.Colour(*color[:3], self.frame.panel_draw.color_pen[3]);
+				self.button_color_pen.color = self.frame.panel_draw.color_pen;
+				self.button_color_pen.display();
+		else:
+			self.frame.button_pick = self.button_color_brush;
+			dialog.GetColourData().SetColour(self.frame.panel_draw.color_brush);
+			if dialog.ShowModal() == wx.ID_OK:
+				color = dialog.GetColourData().GetColour();
+				self.frame.panel_draw.color_brush = wx.Colour(*color[:3], self.frame.panel_draw.color_brush[3]);
+				self.button_color_brush.color = self.frame.panel_draw.color_brush;
+				self.button_color_brush.display();
+
+	def on_slider_scroll(self, event):
+		if event.GetId() == self.slider_pen.GetId():
+			value = self.slider_pen.GetValue();
+			self.frame.panel_draw.color_pen = wx.Colour(*self.frame.panel_draw.color_pen[:3], value)
+			self.button_color_pen.color = self.frame.panel_draw.color_pen;
+			self.button_color_pen.display();
+		else:
+			value = self.slider_brush.GetValue();
+			self.frame.panel_draw.color_brush = wx.Colour(*self.frame.panel_draw.color_brush[:3], value)
+			self.button_color_brush.color = self.frame.panel_draw.color_brush;
+			self.button_color_brush.display();
+
+class panel_term(wx.Panel):
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_term, self).__init__(parent = parent, size = size);
+		self.frame = parent;
+		self.SetBackgroundColour(wx.BLACK);
+
+		sizer_base = wx.BoxSizer(wx.VERTICAL);
+		self.SetSizer(sizer_base);
+
+		self.text_term = wx.TextCtrl(self, wx.NewId(), size = (300, 200), style = wx.TE_READONLY | wx.TE_MULTILINE | wx.HSCROLL);
+		self.text_term.SetBackgroundColour(wx.Colour(20, 20, 20));
+		self.text_term.SetForegroundColour(wx.Colour(210, 210, 210));
+		sizer_base.Add(self.text_term, 1, wx.CENTER | wx.EXPAND, 0);
+		self.text_input = wx.TextCtrl(self, wx.NewId(), size = (300, -1), style = wx.TE_PROCESS_ENTER);
+		self.text_input.SetBackgroundColour(wx.Colour(20, 20, 20));
+		self.text_input.SetForegroundColour(wx.Colour(210, 210, 210));
+		self.text_input.Bind(wx.EVT_TEXT_ENTER, self.on_enter);
+		sizer_base.Add(self.text_input, 0, wx.CENTER | wx.EXPAND, 0);
+
+	def on_enter(self, event):
+		self.text_term.AppendText(">>" + self.text_input.GetValue() + "\n");
+		self.frame.process(self.text_input.GetValue());
 
 class dipl_frame(wx.Frame):
 	def __init__(self, parent, id = -1, title = "", pos = wx.DefaultPosition, size = wx.DefaultSize, style = wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
@@ -312,14 +369,6 @@ class dipl_frame(wx.Frame):
 		tool_draw = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER | wx.TB_VERTICAL);
 		tool_draw.SetToolBitmapSize(wx.Size(40,40));
 
-		self.button_color_pen = button_color(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color_pen.Bind(wx.EVT_BUTTON, self.on_color_pick);
-		tool_draw.AddControl(self.button_color_pen);
-
-		self.button_color_brush = button_color(tool_draw, size = wx.Size(10,10), style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL);
-		self.button_color_brush.Bind(wx.EVT_BUTTON, self.on_color_pick);
-		tool_draw.AddControl(self.button_color_brush);
-
 		self.id_button_width = wx.NewId();
 		self.icon_width = wx.Image("../icon/line_width.png");
 		tool_draw.AddTool(
@@ -434,12 +483,21 @@ class dipl_frame(wx.Frame):
 		self.panel_draw = panel_draw(self, size = (1000, 600));
 		self.manager.AddPane(self.panel_draw, aui.AuiPaneInfo().Name("panel draw").CenterPane());
 
-		#create a panel to show infomation
-		self.panel_info = panel_info(self);
+		#create a panel to set styles
+		self.panel_style = panel_style(self);
 		self.manager.AddPane(
-			self.panel_info,
-			aui.AuiPaneInfo().Name("panel_info").Caption("terminal").Right()
-				.FloatingSize(self.panel_info.GetBestSize()).CloseButton(True)
+			self.panel_style,
+			aui.AuiPaneInfo().Name("panel_style").Caption("style").Right().Position(0)
+				.FloatingSize(self.panel_style.GetBestSize()).CloseButton(True)
+				.MinSize((300, 100))
+		);
+
+		#create a panel to show terminal
+		self.panel_term = panel_term(self);
+		self.manager.AddPane(
+			self.panel_term,
+			aui.AuiPaneInfo().Name("panel_term").Caption("terminal").Right().Position(1)
+				.FloatingSize(self.panel_term.GetBestSize()).CloseButton(True)
 				.MinSize((300, 100))
 		);
 
@@ -454,7 +512,7 @@ class dipl_frame(wx.Frame):
 		self.Show(True);
 
 		#declare some variables
-		self.button_pick = self.button_color_pen;
+		self.button_pick = self.panel_style.button_color_pen;
 
 		#redirect io stream
 		class redirect:
@@ -495,7 +553,7 @@ class dipl_frame(wx.Frame):
 		return super(dipl_frame, self).Destroy();
 
 	def print_term(self, text):
-		self.panel_info.text_term.AppendText(text);
+		self.panel_term.text_term.AppendText(text);
 
 	def process(self, script):
 		exec(script);
@@ -617,7 +675,7 @@ class dipl_frame(wx.Frame):
 		num += 1;
 
 		if mid == self.list_menu_window[num].GetId():
-			pane = self.manager.GetPane("panel_info");
+			pane = self.manager.GetPane("panel_term");
 			if pane.IsShown():
 				pane.Hide();
 			else:
@@ -686,31 +744,6 @@ class dipl_frame(wx.Frame):
 		self.SetStatusText(str(self.panel_draw.img.scale[0]), 1);
 		self.panel_draw.clear();
 		self.panel_draw.img.display();
-
-	def on_color_pick(self, event):
-		dialog = wx.ColourDialog(self);
-		if event.GetId() == self.button_color_pen.GetId():
-			self.button_pick = self.button_color_pen;
-			dialog.GetColourData().SetColour(self.panel_draw.color_pen);
-			if dialog.ShowModal() == wx.ID_OK:
-				color = dialog.GetColourData().GetColour();
-				self.panel_draw.color_pen = wx.Colour(*color[:3], self.panel_draw.color_pen[3]);
-			dialog = wx.NumberEntryDialog(self, "alpha", "alpha", "alpha", self.panel_draw.color_pen[3], 0, 255);
-			if dialog.ShowModal() == wx.ID_OK:
-				self.panel_draw.color_pen = wx.Colour(*self.panel_draw.color_pen[:3], dialog.GetValue());
-			self.button_color_pen.color = self.panel_draw.color_pen;
-			self.button_color_pen.display();
-		else:
-			self.button_pick = self.button_color_brush;
-			dialog.GetColourData().SetColour(self.panel_draw.color_brush);
-			if dialog.ShowModal() == wx.ID_OK:
-				color = dialog.GetColourData().GetColour();
-				self.panel_draw.color_brush = wx.Colour(*color[:3], self.panel_draw.color_brush[3]);
-			dialog = wx.NumberEntryDialog(self, "alpha", "alpha", "alpha", self.panel_draw.color_brush[3], 0, 255);
-			if dialog.ShowModal() == wx.ID_OK:
-				self.panel_draw.color_brush = wx.Colour(*self.panel_draw.color_brush[:3], dialog.GetValue());
-			self.button_color_brush.color = self.panel_draw.color_brush;
-			self.button_color_brush.display();
 
 	def on_line_width(self, event):
 		#dialog = wx.NumberEntryDialog(self, message = "Please input the line width", prompt = "width:", caption = "line width", value = self.panel_draw.thick, min = 1);

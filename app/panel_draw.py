@@ -170,12 +170,14 @@ class panel_draw(wx.Panel):
 			pos2 = pos2.astype(np.int32);
 			if pos2[0] >= 0 and pos2[0] < self.img.data.shape[0] and pos2[1] >= 0 and pos2[1] < self.img.data.shape[1]:
 				color = self.img.data[pos2[0], pos2[1], :];
-				if self.frame.button_pick is self.frame.button_color_pen:
-					self.color_pen = wx.Colour(color);
-					self.frame.button_pick.SetBackgroundColour(self.color_pen);
+				if self.frame.button_pick is self.frame.panel_style.button_color_pen:
+					self.color_pen = wx.Colour(*color[:3], self.color_pen[3]);
+					self.frame.button_pick.color = self.color_pen;
+					self.frame.button_pick.display();
 				else:
-					self.color_brush = wx.Colour(color);
-					self.frame.button_pick.SetBackgroundColour(self.color_brush);
+					self.color_brush = wx.Colour(*color[:3], self.color_brush[3]);
+					self.frame.button_pick.color = self.color_brush;
+					self.frame.button_pick.display();
 				self.frame.SetStatusText(str(color), 0);
 		elif self.status == self.s_pencil or self.status == self.s_smooth:
 			pos = np.array(event.GetPosition())[::-1];
