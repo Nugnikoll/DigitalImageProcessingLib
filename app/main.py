@@ -54,7 +54,7 @@ class button_color(wx.BitmapButton):
 		data = np.array([[[20], [100]],[[100], [20]]]);
 		data = data.repeat(3, 2).repeat(8, 0).repeat(8, 1);
 		data = np.tile(data, (2, 2, 1));
-		self.data = data[4:22, 4:22, :];
+		self.data = data;
 		self.color = wx.Colour(0, 0, 0, 255);
 		self.Bind(wx.EVT_PAINT, self.on_paint);
 		self.display();
@@ -68,7 +68,35 @@ class button_color(wx.BitmapButton):
 		img = numpy2bitmap(data); 
 		self.SetBitmap(img);
 
-class panel_style(wx.Panel):
+class panel_line(wx.Panel):
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_line, self).__init__(parent = parent, size = size);
+		self.frame = parent;
+		self.SetBackgroundColour(wx.Colour(100, 100, 100));
+		self.thick = 5;
+		self.style = wx.SOLID;
+		self.Bind(wx.EVT_PAINT, self.on_paint);
+
+	def paint(self):
+		dc = wx.ClientDC(self);
+		dc.Clear();
+		dc.SetPen(wx.Pen(wx.BLACK, self.thick, self.style));
+		dc.DrawLine(0, 10, 200, 10);
+
+	def on_paint(self, event):
+		self.paint();
+
+	def set_thick(self, thick):
+		self.thick = thick;
+		self.paint();
+
+	def set_style(self, style):
+		self.style = style;
+		self.paint();
+
+import wx.lib.scrolledpanel
+
+class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 	def __init__(self, parent, size = wx.DefaultSize):
 		super(panel_style, self).__init__(parent = parent, size = size);
 		self.frame = parent;
@@ -79,7 +107,7 @@ class panel_style(wx.Panel):
 
 		sizer_pen = wx.BoxSizer(wx.HORIZONTAL);
 		sizer_base.Add(sizer_pen, 0, wx.ALL | wx.ALIGN_CENTER, 5);
-		self.button_color_pen = button_color(self, size = wx.Size(30,30), style = wx.SUNKEN_BORDER);
+		self.button_color_pen = button_color(self, size = wx.Size(40,40), style = wx.SUNKEN_BORDER);
 		self.button_color_pen.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		sizer_pen.Add(self.button_color_pen, 0, wx.ALL | wx.ALIGN_CENTER, 5);
 		self.slider_pen = wx.Slider(self, size = wx.Size(90, 10), value = 255, minValue = 0, maxValue = 255);
@@ -88,12 +116,36 @@ class panel_style(wx.Panel):
 
 		sizer_brush = wx.BoxSizer(wx.HORIZONTAL);
 		sizer_base.Add(sizer_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
-		self.button_color_brush = button_color(self, size = wx.Size(30,30), style = wx.SUNKEN_BORDER );
+		self.button_color_brush = button_color(self, size = wx.Size(40,40), style = wx.SUNKEN_BORDER );
 		self.button_color_brush.Bind(wx.EVT_BUTTON, self.on_color_pick);
 		sizer_brush.Add(self.button_color_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
 		self.slider_brush = wx.Slider(self, size = wx.Size(90, 10), value = 255, minValue = 0, maxValue = 255);
 		self.slider_brush.Bind(wx.EVT_SCROLL, self.on_slider_scroll);
 		sizer_brush.Add(self.slider_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		self.panel_line = panel_line(self, size = (200, 20));
+		sizer_base.Add(self.panel_line, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		self.spin_line = wx.SpinCtrl(self, size = (200, -1), min = 0, max = 1000, initial = 5);
+		self.spin_line.Bind(wx.EVT_SPINCTRL, self.on_spin_line);
+		sizer_base.Add(self.spin_line, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		self.choice_line = wx.Choice(
+			self, size = (200, -1),
+			choices = [
+				"solid", "dot", "long_dash", "dot_dash",
+				"user_dash", "transparent", "bdiagonal_hatch",
+				"cross_diag_hatch", "fdiagonal_hatch", "cross_hatch",
+				"horizontal_hatch", "vertical_hatch", "first_hatch",
+				"last_hatch"
+			],
+		);
+		self.choice_line.SetSelection(0);
+		self.choice_line.Bind(wx.EVT_CHOICE, self.on_choice_line);
+		sizer_base.Add(self.choice_line, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		self.SetAutoLayout(1);
+		self.SetupScrolling();
 
 	def on_color_pick(self, event):
 		dialog = wx.ColourDialog(self);
@@ -125,6 +177,24 @@ class panel_style(wx.Panel):
 			self.frame.panel_draw.color_brush = wx.Colour(*self.frame.panel_draw.color_brush[:3], value)
 			self.button_color_brush.color = self.frame.panel_draw.color_brush;
 			self.button_color_brush.display();
+
+	def on_choice_line(self, event):
+		table_style = [
+			wx.PENSTYLE_SOLID, wx.PENSTYLE_DOT, wx.PENSTYLE_LONG_DASH,
+			wx.PENSTYLE_DOT_DASH, wx.PENSTYLE_USER_DASH, wx.PENSTYLE_TRANSPARENT,
+			wx.PENSTYLE_BDIAGONAL_HATCH, wx.PENSTYLE_CROSSDIAG_HATCH, wx.PENSTYLE_FDIAGONAL_HATCH,
+			wx.PENSTYLE_CROSS_HATCH, wx.PENSTYLE_HORIZONTAL_HATCH, wx.PENSTYLE_VERTICAL_HATCH,
+			wx.PENSTYLE_FIRST_HATCH, wx.PENSTYLE_LAST_HATCH
+		];
+		sel = self.choice_line.GetSelection();
+		style = table_style[sel];
+		self.frame.panel_draw.style_pen = style;
+		self.panel_line.set_style(style);
+
+	def on_spin_line(self, event):
+		thick = self.spin_line.GetValue();
+		self.frame.panel_draw.thick = thick;
+		self.panel_line.set_thick(thick);
 
 class panel_term(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
@@ -227,7 +297,11 @@ class dipl_frame(wx.Frame):
 		menu_edit.Append(menu_redo);
 
 		#add items to menu_window
-		str_menu_window = ["&Mouse Toolbar", "&Transform Toolbar", "&Drawing Toolbar", "Terminal &Panel"];
+		str_menu_window = [
+			"&Mouse Toolbar", "&Transform Toolbar",
+			"&Drawing Toolbar", "&Style Panel",
+			"Ter&minal Panel"
+		];
 		self.list_menu_window = [];
 		for item in str_menu_window:
 			menu = wx.MenuItem(
@@ -368,13 +442,6 @@ class dipl_frame(wx.Frame):
 		#create a toolbar
 		tool_draw = wx.ToolBar(self, size = wx.DefaultSize, style = wx.TB_FLAT | wx.TB_NODIVIDER | wx.TB_VERTICAL);
 		tool_draw.SetToolBitmapSize(wx.Size(40,40));
-
-		self.id_button_width = wx.NewId();
-		self.icon_width = wx.Image("../icon/line_width.png");
-		tool_draw.AddTool(
-			self.id_button_width, "line_width", self.icon_width.ConvertToBitmap(), shortHelp = "line width"
-		);
-		self.Bind(wx.EVT_TOOL, self.on_line_width, id = self.id_button_width);
 
 		self.id_tool_pencil = wx.NewId();
 		self.icon_pencil = wx.Image("../icon/pencil.png");
@@ -675,6 +742,14 @@ class dipl_frame(wx.Frame):
 		num += 1;
 
 		if mid == self.list_menu_window[num].GetId():
+			pane = self.manager.GetPane("panel_style");
+			if pane.IsShown():
+				pane.Hide();
+			else:
+				pane.Show();
+		num += 1;
+
+		if mid == self.list_menu_window[num].GetId():
 			pane = self.manager.GetPane("panel_term");
 			if pane.IsShown():
 				pane.Hide();
@@ -744,14 +819,6 @@ class dipl_frame(wx.Frame):
 		self.SetStatusText(str(self.panel_draw.img.scale[0]), 1);
 		self.panel_draw.clear();
 		self.panel_draw.img.display();
-
-	def on_line_width(self, event):
-		#dialog = wx.NumberEntryDialog(self, message = "Please input the line width", prompt = "width:", caption = "line width", value = self.panel_draw.thick, min = 1);
-		dialog = wx.TextEntryDialog(self, message = "Please input the line width", caption = "line width", value = str(self.panel_draw.thick));
-		if dialog.ShowModal() == wx.ID_OK:
-			thick = float(dialog.GetValue());
-			if thick >= 0:
-				self.panel_draw.thick = thick;
 
 	def on_choice_transform(self, event):
 		sel = self.choice_transform.GetCurrentSelection();

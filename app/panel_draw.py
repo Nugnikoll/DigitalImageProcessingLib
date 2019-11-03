@@ -26,6 +26,8 @@ class panel_draw(wx.Panel):
 		self.thick = 5;
 		self.color_pen = wx.Colour(0, 0, 0);
 		self.color_brush = wx.Colour(0, 0, 0);
+		self.style_pen = wx.PENSTYLE_SOLID;
+		self.style_brush = wx.BRUSHSTYLE_SOLID;
 		self.pos = (0, 0);
 		self.pos_list = None;
 
