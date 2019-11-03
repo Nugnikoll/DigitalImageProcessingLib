@@ -14,7 +14,7 @@ default_random_engine engine(
 );
 
 void padding(
-	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
+	ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int),
 	const int& margin_t, const int& margin_b,
 	const int& margin_l, const int& margin_r, const int& value
 ){
@@ -36,7 +36,7 @@ void padding(
 }
 
 void trim(
-	int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2,
+	ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int),
 	const int& margin_t, const int& margin_b,
 	const int& margin_l, const int& margin_r
 ){
@@ -154,13 +154,13 @@ void ifft(const int& size, double* in_real, double* in_img, double* out_real, do
 	}
 }
 
-void fft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri, int i1){
+void fft(ARRAY_1D_OUT_M(std::complex<double>), ARRAY_1D_IN_I(std::complex<double>)){
 	*m1 = i1;
 	*ptrm = new complex<double>[i1];
 	fft(i1, (double*)ptri, ((double*)ptri) + 1, (double*)*ptrm, ((double*)*ptrm) + 1, 2);
 }
 
-void ifft(std::complex<double>** ptrm, int* m1, std::complex<double>* ptri, int i1){
+void ifft(ARRAY_1D_OUT_M(std::complex<double>), ARRAY_1D_IN_I(std::complex<double>)){
 	*m1 = i1;
 	*ptrm = new complex<double>[i1];
 	ifft(i1, (double*)ptri, ((double*)ptri) + 1, (double*)*ptrm, ((double*)*ptrm) + 1, 2);
@@ -192,12 +192,12 @@ void idct(const int& size, double* data_in, double* data_out, const int& step = 
 	}
 }
 
-void dct(double** ptrm, int* m1, double* ptri, int i1){
+void dct(ARRAY_1D_OUT_M(double), ARRAY_1D_IN_I(double)){
 	*m1 = i1;
 	*ptrm = new double[i1];
 	dct(i1, ptri, *ptrm);
 }
-void idct(double** ptrm, int* m1, double* ptri, int i1){
+void idct(ARRAY_1D_OUT_M(double), ARRAY_1D_IN_I(double)){
 	*m1 = i1;
 	*ptrm = new double[i1];
 	idct(i1, ptri, *ptrm);
@@ -260,7 +260,7 @@ void idct(double** ptrm, int* m1, double* ptri, int i1){
 //	fct(i1, ptri, *ptrm);
 //}
 
-void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3){
+void rgb2ycc(ARRAY_3D_OUT_M(int), ARRAY_3D_IN_I(int)){
 	assert(i3 == 3);
 
 	*m1 = i1;
@@ -286,7 +286,7 @@ void rgb2ycc(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, i
 	}
 }
 
-void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3){
+void ycc2rgb(ARRAY_3D_OUT_M(int), ARRAY_3D_IN_I(int)){
 	assert(i3 == 3);
 
 	*m1 = i1;
@@ -310,19 +310,19 @@ void ycc2rgb(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, i
 	}
 }
 
-void power_law(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, double gamma){
+void power_law(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), double power){
 	*m1 = i1;
 	*m2 = i2;
 	*ptrm = new int[i1 * i2];
 
 	for(int i = 0; i != i1; ++i){
 		for(int j = 0; j != i2; ++j){
-			(*ptrm)[i * i2 + j] = pow(double(ptri[i * i2 + j]) / 255, gamma) * 255;
+			(*ptrm)[i * i2 + j] = pow(double(ptri[i * i2 + j]) / 255, power) * 255;
 		}
 	}
 }
 
-void map_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w, int y, int x, double scale){
+void map_linear(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), int h, int w, int y, int x, double scale){
 	*m1 = h;
 	*m2 = w;
 	*ptrm = new int[h * w];
@@ -334,7 +334,7 @@ void map_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, 
 	}
 }
 
-void map_linear3(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i2, int i3, int h, int w, int y, int x, double scale){
+void map_linear3(ARRAY_3D_OUT_M(int), ARRAY_3D_IN_I(int), int h, int w, int y, int x, double scale){
 	*m1 = h;
 	*m2 = w;
 	*m3 = i3;
@@ -350,7 +350,7 @@ void map_linear3(int** ptrm, int* m1, int* m2, int* m3, int* ptri, int i1, int i
 	}
 }
 
-void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w){
+void resize_naive(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), int h, int w){
 	*m1 = h;
 	*m2 = w;
 	*ptrm = new int[h * w];
@@ -362,7 +362,7 @@ void resize_naive(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h
 	}
 }
 
-void resize_near(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w){
+void resize_near(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), int h, int w){
 	*m1 = h;
 	*m2 = w;
 	*ptrm = new int[h * w];
@@ -430,14 +430,14 @@ void resize_linear(int* ptrm, int n, int* ptri, int i1, int step = 1){
 	}
 }
 
-void resize_linear(int** ptrm, int* m1, int* ptri, int i1, int n){
+void resize_linear(ARRAY_1D_OUT_M(int), ARRAY_1D_IN_I(int), int n){
 	*m1 = n;
 	*ptrm = new int[n];
 
 	resize_linear(*ptrm, n, ptri, i1);
 }
 
-void resize_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int h, int w){
+void resize_linear(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), int h, int w){
 	int* ptr_mid;
 
 	*m1 = h;
@@ -455,7 +455,7 @@ void resize_linear(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int 
 	delete ptr_mid;
 }
 
-void equalize(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, int low, int high){
+void equalize(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), int low, int high){
 	int bound_l = *min_element(ptri, ptri + i1 * i2);
 	int bound_h = *max_element(ptri, ptri + i1 * i2) + 1;
 	int range = bound_h - bound_l;
@@ -497,7 +497,7 @@ void differentiate(const int& size, int* data_in, int* data_out, const int& step
 	}
 }
 
-void laplacian(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2){
+void laplacian(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int)){
 	int* buffer_v;
 	int* buffer_h;
 
@@ -540,7 +540,7 @@ void laplacian(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2){
 	delete buffer_h;
 }
 
-void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j1){
+void correlate(ARRAY_1D_OUT_M(double), ARRAY_1D_IN_I(double), ARRAY_1D_IN_J(double)){
 	double value;
 	*m1 = i1 + j1 - 1;
 	*ptrm = new double[*m1];
@@ -554,7 +554,7 @@ void correlate(double** ptrm, int* m1, double* ptri, int i1, double* ptrj, int j
 	}
 }
 
-void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, double* ptrj, int j1, int j2){
+void correlate2(ARRAY_2D_OUT_M(double), ARRAY_2D_IN_I(double), ARRAY_2D_IN_J(double)){
 	double value;
 	*m1 = i1 + j1 - 1;
 	*m2 = i2 + j2 - 1;
@@ -573,7 +573,7 @@ void correlate2(double** ptrm, int* m1, int* m2, double* ptri, int i1, int i2, d
 	}
 }
 
-void noise_guass(int* ptri, int i1, int i2, const double& variance){
+void noise_guass(ARRAY_2D_IN_I(int), const double& variance){
 	normal_distribution<double> dist(0, variance);
 	for(int i = 0; i != i1; ++i){
 		for(int j = 0; j != i2; ++j){
@@ -582,7 +582,7 @@ void noise_guass(int* ptri, int i1, int i2, const double& variance){
 	}
 }
 
-void noise_salt(int* ptri, int i1, int i2, const double& probability, const int& value){
+void noise_salt(ARRAY_2D_IN_I(int), const double& probability, const int& value){
 	bernoulli_distribution dist(probability);
 	for(int i = 0; i != i1; ++i){
 		for(int j = 0; j != i2; ++j){
@@ -593,7 +593,7 @@ void noise_salt(int* ptri, int i1, int i2, const double& probability, const int&
 	}
 }
 
-void filter_median(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, const int& kernel_size){
+void filter_median(ARRAY_2D_OUT_M(int), ARRAY_2D_IN_I(int), const int& kernel_size){
 	*m1 = i1;
 	*m2 = i2;
 	*ptrm = new int[i1 * i2];
@@ -618,3 +618,36 @@ void filter_median(int** ptrm, int* m1, int* m2, int* ptri, int i1, int i2, cons
 		}
 	}
 }
+
+void bezier(ARRAY_1D_OUT_M(double), ARRAY_1D_IN_I(double), int num){
+	int *table = new int[i1 * i1];
+	for(int i = 0; i != i1; ++i){
+		table[i] = 1;
+		table[i * i1] = 1;
+	}
+	for(int i = 1; i != i1; ++i){
+		for(int j = 1; j != i1 - i; ++j){
+			table[i * i1 + j] = table[(i - 1) * i1 + j] + table[i * i1 + j - 1];
+		}
+	}
+
+	*m1 = num + 1;
+	*ptrm = new double[*m1];
+	memset(*ptrm, 0, sizeof(double) * *m1);
+	double *table_t = new double[*m1];
+	for(int i = 0; i != *m1; ++i){
+		table_t[i] = double(i) / num;
+	}
+
+	for(int i = 0; i != i1; ++i){
+		int ii = i1 - i - 1;
+		int c = table[i * i1 + ii];
+		for(int j = 0; j != *m1; ++j){
+			(*ptrm)[j] += ptri[i] * pow(table_t[j], i) * pow(1 - table_t[j], ii) * c;
+		}
+	}
+
+	delete table;
+	delete table_t;
+}
+
