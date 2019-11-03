@@ -241,7 +241,7 @@ class dimage:
 		img = numpy2bitmap(self.data);
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
-		dc.SetBrush(wx.Brush(self.panel.color_brush));
+		dc.SetBrush(wx.Brush(self.panel.color_brush, self.panel.style_brush),);
 		dc.FloodFill(pos[::-1], self.data[int(pos[0]), int(pos[1])]);
 		self.data = bitmap2numpy(img);
 
@@ -252,7 +252,7 @@ class dimage:
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(self.panel.color_pen, self.panel.thick, self.panel.style_pen));
-		dc.SetBrush(wx.Brush(self.panel.color_brush));
+		dc.SetBrush(wx.Brush(self.panel.color_brush, self.panel.style_brush));
 		dc.DrawCircle(pos[::-1], radius);
 		self.data = bitmap2numpy(img);
 
@@ -260,7 +260,7 @@ class dimage:
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(wx.Colour((self.panel.color_pen[3], ) * 3), self.panel.thick, self.panel.style_pen));
-		dc.SetBrush(wx.Brush(wx.Colour((self.panel.color_brush[3], ) * 3)));
+		dc.SetBrush(wx.Brush(wx.Colour((self.panel.color_brush[3], ) * 3), self.panel.style_brush));
 		dc.DrawCircle(pos[::-1], radius);
 		data = bitmap2numpy(img)[:, :, 0];
 		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
@@ -272,7 +272,7 @@ class dimage:
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(self.panel.color_pen, self.panel.thick, self.panel.style_pen));
-		dc.SetBrush(wx.Brush(self.panel.color_brush));
+		dc.SetBrush(wx.Brush(self.panel.color_brush, self.panel.style_brush));
 		dc.DrawRectangle(pos1[::-1], pos2[::-1] - pos1[::-1]);
 		self.data = bitmap2numpy(img);
 
@@ -280,7 +280,7 @@ class dimage:
 		dc = wx.MemoryDC();
 		dc.SelectObject(img);
 		dc.SetPen(wx.Pen(wx.Colour((self.panel.color_pen[3], ) * 3), self.panel.thick, self.panel.style_pen));
-		dc.SetBrush(wx.Brush(wx.Colour((self.panel.color_brush[3], ) * 3)));
+		dc.SetBrush(wx.Brush(wx.Colour((self.panel.color_brush[3], ) * 3), self.panel.style_brush));
 		dc.DrawRectangle(pos1[::-1], pos2[::-1] - pos1[::-1]);
 		data = bitmap2numpy(img)[:, :, 0];
 		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);

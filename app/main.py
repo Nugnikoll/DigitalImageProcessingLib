@@ -2,6 +2,7 @@
 
 import wx;
 import wx.aui as aui;
+import wx.lib.scrolledpanel;
 import sys;
 import os;
 import time;
@@ -72,9 +73,9 @@ class panel_line(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
 		super(panel_line, self).__init__(parent = parent, size = size);
 		self.frame = parent;
-		self.SetBackgroundColour(wx.Colour(100, 100, 100));
+		self.SetBackgroundColour(wx.Colour(150, 150, 150));
 		self.thick = 5;
-		self.style = wx.SOLID;
+		self.style = wx.PENSTYLE_SOLID;
 		self.Bind(wx.EVT_PAINT, self.on_paint);
 
 	def paint(self):
@@ -94,13 +95,33 @@ class panel_line(wx.Panel):
 		self.style = style;
 		self.paint();
 
-import wx.lib.scrolledpanel
+class panel_brush(wx.Panel):
+	def __init__(self, parent, size = wx.DefaultSize):
+		super(panel_brush, self).__init__(parent = parent, size = size);
+		self.frame = parent;
+		self.style = wx.BRUSHSTYLE_SOLID;
+		self.Bind(wx.EVT_PAINT, self.on_paint);
+
+	def paint(self):
+		dc = wx.ClientDC(self);
+		dc.SetBackground(wx.Brush(wx.Colour(150, 150, 150)));
+		dc.Clear();
+		dc.SetPen(wx.Pen(wx.BLACK, 0));
+		dc.SetBrush(wx.Brush(wx.BLACK, self.style));
+		dc.DrawRectangle(0, 0, 200, 20);
+
+	def on_paint(self, event):
+		self.paint();
+
+	def set_style(self, style):
+		self.style = style;
+		self.paint();
 
 class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 	def __init__(self, parent, size = wx.DefaultSize):
 		super(panel_style, self).__init__(parent = parent, size = size);
 		self.frame = parent;
-		self.SetBackgroundColour(wx.Colour(100, 100, 100));
+		self.SetBackgroundColour(wx.Colour(150, 150, 150));
 
 		sizer_base = wx.BoxSizer(wx.VERTICAL);
 		self.SetSizer(sizer_base);
@@ -144,6 +165,22 @@ class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 		self.choice_line.Bind(wx.EVT_CHOICE, self.on_choice_line);
 		sizer_base.Add(self.choice_line, 0, wx.ALL | wx.ALIGN_CENTER, 5);
 
+		self.panel_brush = panel_brush(self, size = (200, 20));
+		sizer_base.Add(self.panel_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
+		self.choice_brush = wx.Choice(
+			self, size = (200, -1),
+			choices = [
+				"solid", "transparent", "bdiagonal_hatch",
+				"cross_diag_hatch", "fdiagonal_hatch", "cross_hatch",
+				"horizontal_hatch", "vertical_hatch", "first_hatch",
+				"last_hatch"
+			],
+		);
+		self.choice_brush.SetSelection(0);
+		self.choice_brush.Bind(wx.EVT_CHOICE, self.on_choice_brush);
+		sizer_base.Add(self.choice_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+
 		self.SetAutoLayout(1);
 		self.SetupScrolling();
 
@@ -178,6 +215,11 @@ class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 			self.button_color_brush.color = self.frame.panel_draw.color_brush;
 			self.button_color_brush.display();
 
+	def on_spin_line(self, event):
+		thick = self.spin_line.GetValue();
+		self.frame.panel_draw.thick = thick;
+		self.panel_line.set_thick(thick);
+
 	def on_choice_line(self, event):
 		table_style = [
 			wx.PENSTYLE_SOLID, wx.PENSTYLE_DOT, wx.PENSTYLE_LONG_DASH,
@@ -191,10 +233,17 @@ class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 		self.frame.panel_draw.style_pen = style;
 		self.panel_line.set_style(style);
 
-	def on_spin_line(self, event):
-		thick = self.spin_line.GetValue();
-		self.frame.panel_draw.thick = thick;
-		self.panel_line.set_thick(thick);
+	def on_choice_brush(self, event):
+		table_style = [
+			wx.BRUSHSTYLE_SOLID, wx.BRUSHSTYLE_TRANSPARENT,
+			wx.BRUSHSTYLE_BDIAGONAL_HATCH, wx.BRUSHSTYLE_CROSSDIAG_HATCH, wx.BRUSHSTYLE_FDIAGONAL_HATCH,
+			wx.BRUSHSTYLE_CROSS_HATCH, wx.BRUSHSTYLE_HORIZONTAL_HATCH, wx.BRUSHSTYLE_VERTICAL_HATCH,
+			wx.BRUSHSTYLE_FIRST_HATCH, wx.BRUSHSTYLE_LAST_HATCH
+		];
+		sel = self.choice_brush.GetSelection();
+		style = table_style[sel];
+		self.frame.panel_draw.style_brush = style;
+		self.panel_brush.set_style(style);
 
 class panel_term(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
