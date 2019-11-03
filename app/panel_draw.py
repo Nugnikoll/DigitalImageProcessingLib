@@ -28,8 +28,10 @@ class panel_draw(wx.Panel):
 		self.color_brush = wx.Colour(0, 0, 0);
 		self.style_pen = wx.PENSTYLE_SOLID;
 		self.style_brush = wx.BRUSHSTYLE_SOLID;
+		self.font = None;
 		self.pos = (0, 0);
 		self.pos_list = None;
+		self.text = "";
 
 		self.s_normal = 0;
 		self.s_grab = 1;
@@ -40,8 +42,9 @@ class panel_draw(wx.Panel):
 		self.s_bucket = 6;
 		self.s_selector = 7;
 		self.s_draw = 8;
-		self.s_zoom_in = 9;
-		self.s_zoom_out = 10;
+		self.s_text = 9;
+		self.s_zoom_in = 10;
+		self.s_zoom_out = 11;
 		self.status = self.s_normal;
 
 		self.sd_line = 0;
@@ -150,6 +153,8 @@ class panel_draw(wx.Panel):
 		elif status == self.s_draw:
 			self.SetCursor(self.frame.icon_selector);
 			self.pos_list = None;
+		elif status == self.s_text:
+			self.SetCursor(self.frame.icon_selector);
 		elif status == self.s_zoom_in:
 			self.SetCursor(self.frame.icon_zoom_in);
 		elif status == self.s_zoom_out:
@@ -217,6 +222,11 @@ class panel_draw(wx.Panel):
 				elif len(self.pos_list) <= 20:
 					self.pos_list.append(pos);
 			self.cache = self.img.view();
+		elif self.status == self.s_text:
+			pos = np.array(event.GetPosition())[::-1];
+			pos_img = (pos - self.img.pos) / self.img.scale;
+			self.img.draw_text(self.text, pos_img);
+			self.img.display();
 
 	def on_motion(self, event):
 		if self.img is None:

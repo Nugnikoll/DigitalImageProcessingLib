@@ -285,6 +285,28 @@ class dimage:
 		data = bitmap2numpy(img)[:, :, 0];
 		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
 
+	def draw_text(self, text, pos):
+		self.push();
+
+		img = numpy2bitmap(self.data);
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetTextForeground(self.panel.color_pen[:3]);
+		if not self.panel.font is None:
+			dc.SetFont(self.panel.font);
+		dc.DrawText(text, pos[::-1]);
+		self.data = bitmap2numpy(img);
+
+		img = numpy2bitmap(np.zeros(self.data.shape, dtype = np.int32));
+		dc = wx.MemoryDC();
+		dc.SelectObject(img);
+		dc.SetTextForeground(wx.Colour((self.panel.color_pen[3], ) * 3));
+		if not self.panel.font is None:
+			dc.SetFont(self.panel.font);
+		dc.DrawText(text, pos[::-1]);
+		data = bitmap2numpy(img)[:, :, 0];
+		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
+
 	def resize_near(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);

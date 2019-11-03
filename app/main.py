@@ -43,7 +43,6 @@ class dialog_new(wx.Dialog):
 		button_ok = wx.Button(panel_base, wx.ID_OK , label = "OK");
 		sizer_button.Add(button_ok, 0, wx.ALL | wx.EXPAND, 5);
 
-
 class button_color(wx.BitmapButton):
 	def __init__(
 		self, parent, id = -1,
@@ -181,6 +180,10 @@ class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 		self.choice_brush.Bind(wx.EVT_CHOICE, self.on_choice_brush);
 		sizer_base.Add(self.choice_brush, 0, wx.ALL | wx.ALIGN_CENTER, 5);
 
+		self.fontctrl = wx.FontPickerCtrl(self, size = (200, -1));
+		sizer_base.Add(self.fontctrl, 0, wx.ALL | wx.ALIGN_CENTER, 5);
+		self.fontctrl.Bind(wx.EVT_FONTPICKER_CHANGED, self.on_fontctrl);
+
 		self.SetAutoLayout(1);
 		self.SetupScrolling();
 
@@ -244,6 +247,9 @@ class panel_style(wx.lib.scrolledpanel.ScrolledPanel):
 		style = table_style[sel];
 		self.frame.panel_draw.style_brush = style;
 		self.panel_brush.set_style(style);
+
+	def on_fontctrl(self, event):
+		self.frame.panel_draw.font = self.fontctrl.GetSelectedFont();
 
 class panel_term(wx.Panel):
 	def __init__(self, parent, size = wx.DefaultSize):
@@ -586,6 +592,13 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_TOOL, self.on_draw, id = self.id_draw_curve);
 
+		self.id_draw_text = wx.NewId();
+		self.icon_text = wx.Image("../icon/draw_text.png");
+		tool_draw.AddTool(
+			self.id_draw_text, "text", self.icon_text.ConvertToBitmap(), shortHelp = "draw text"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_draw_text, id = self.id_draw_text);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -852,8 +865,14 @@ class dipl_frame(wx.Frame):
 		elif event_id == self.id_draw_circle:
 			status_draw = self.panel_draw.sd_circle
 		elif event_id == self.id_draw_curve:
-			status_draw = self.panel_draw.sd_curve
+			status_draw = self.panel_draw.sd_curve;
 		self.panel_draw.set_status(self.panel_draw.s_draw, status_draw);
+
+	def on_draw_text(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_text);
+		dialog = wx.TextEntryDialog(self, "Text:", caption = "Draw Text", value = self.panel_draw.text);
+		if dialog.ShowModal() == wx.ID_OK:
+			self.panel_draw.text = dialog.GetValue();
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
