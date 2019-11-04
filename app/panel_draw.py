@@ -32,6 +32,7 @@ class panel_draw(wx.Panel):
 		self.pos = (0, 0);
 		self.pos_list = None;
 		self.text = "";
+		self.pict = None;
 
 		self.s_normal = 0;
 		self.s_grab = 1;
@@ -43,8 +44,9 @@ class panel_draw(wx.Panel):
 		self.s_selector = 7;
 		self.s_draw = 8;
 		self.s_text = 9;
-		self.s_zoom_in = 10;
-		self.s_zoom_out = 11;
+		self.s_pict = 10
+		self.s_zoom_in = 11;
+		self.s_zoom_out = 12;
 		self.status = self.s_normal;
 
 		self.sd_line = 0;
@@ -155,6 +157,8 @@ class panel_draw(wx.Panel):
 			self.pos_list = None;
 		elif status == self.s_text:
 			self.SetCursor(self.frame.icon_selector);
+		elif status == self.s_pict:
+			self.SetCursor(self.frame.icon_selector);
 		elif status == self.s_zoom_in:
 			self.SetCursor(self.frame.icon_zoom_in);
 		elif status == self.s_zoom_out:
@@ -226,6 +230,11 @@ class panel_draw(wx.Panel):
 			pos = np.array(event.GetPosition())[::-1];
 			pos_img = (pos - self.img.pos) / self.img.scale;
 			self.img.draw_text(self.text, pos_img);
+			self.img.display();
+		elif self.status == self.s_pict:
+			pos = np.array(event.GetPosition())[::-1];
+			pos_img = (pos - self.img.pos) / self.img.scale;
+			self.img.draw_pict(self.pict, pos_img);
 			self.img.display();
 
 	def on_motion(self, event):

@@ -307,6 +307,13 @@ class dimage:
 		data = bitmap2numpy(img)[:, :, 0];
 		self.alpha = (self.alpha + (255 - self.alpha) * data / 255).astype(np.int32);
 
+	def draw_pict(self, pict, pos):
+		self.push();
+
+		img = numpy2img(self.data, self.alpha);
+		img.Paste(pict, pos[1], pos[0]);
+		self.data, self.alpha = img2numpy(img);
+
 	def resize_near(self, size):
 		self.push();
 		result = np.empty((size[0], size[1], self.data.shape[2]), dtype = np.int32);

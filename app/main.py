@@ -599,6 +599,13 @@ class dipl_frame(wx.Frame):
 		);
 		self.Bind(wx.EVT_TOOL, self.on_draw_text, id = self.id_draw_text);
 
+		self.id_draw_pict = wx.NewId();
+		self.icon_pict = wx.Image("../icon/draw_pict.png");
+		tool_draw.AddTool(
+			self.id_draw_pict, "picture", self.icon_pict.ConvertToBitmap(), shortHelp = "insert picture"
+		);
+		self.Bind(wx.EVT_TOOL, self.on_draw_pict, id = self.id_draw_pict);
+
 		tool_draw.Realize();
 		self.manager.AddPane(
 			tool_draw, aui.AuiPaneInfo().
@@ -873,6 +880,33 @@ class dipl_frame(wx.Frame):
 		dialog = wx.TextEntryDialog(self, "Text:", caption = "Draw Text", value = self.panel_draw.text);
 		if dialog.ShowModal() == wx.ID_OK:
 			self.panel_draw.text = dialog.GetValue();
+
+	def on_draw_pict(self, event):
+		self.panel_draw.set_status(self.panel_draw.s_pict);
+		if not hasattr(self, "path_image"):
+			self.path_image = "../img/";
+		if not hasattr(self, "index_image"):
+			self.index_image = 1;
+		dialog = wx.FileDialog(
+			self, message = "Open File", defaultDir = self.path_image,
+			wildcard = (
+				"Joint Photographic Experts Group files(*.jpg;*.jpeg)|*.jpg;*.jpeg"
+				"|Portable Network Graphics Files(*.png)|*.png"
+				"|Bitmap Image Files(*.bmp)|*.bmp"
+				"|Tagged Image Files(*.tif;*.tiff)|*.tif;*.tiff"
+				"|X PixMap Files(*.xpm)|*.xpm"
+			),
+			style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
+		);
+		dialog.SetFilterIndex(self.index_image);
+		if dialog.ShowModal() == wx.ID_OK:
+			path = dialog.GetPath();
+			img = wx.Image();
+			img.LoadFile(path);
+			self.panel_draw.pict = img;
+		self.path_image = dialog.GetDirectory();
+		self.index_image = dialog.GetFilterIndex();
+		dialog.Destroy();
 
 	def on_zoom_in(self, event):
 		self.panel_draw.set_status(self.panel_draw.s_zoom_in);
